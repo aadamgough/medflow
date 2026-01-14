@@ -1,0 +1,17 @@
+import { Redis } from 'ioredis';
+
+const redisConfig = {
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379'),
+  maxRetriesPerRequest: null, // Required for BullMQ
+};
+
+export const redisConnection = new Redis(redisConfig);
+
+redisConnection.on('connect', () => {
+  console.log('✓ Connected to Redis');
+});
+
+redisConnection.on('error', (err) => {
+  console.error('Redis connection error:', err);
+});

@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String      @id @default(cuid())
+  email         String      @unique
+  passwordHash  String
+  name          String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  patients      Patient[]
+  
+  @@map("users")
+}
+
+model Patient {
+  id            String      @id @default(cuid())
+  userId        String
+  name          String
+  dateOfBirth   DateTime?
+  externalId    String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents     Document[]
+  timelineEvents TimelineEvent[]
+  
+  @@map("patients")
+}
+
+model Document {
+  id              String          @id @default(cuid())
+  patientId       String
+  userId          String
+  
+  originalFilename String
+  s3Key           String
+  s3Bucket        String
+  fileSize        Int
+  mimeType        String
+  
+  documentType    DocumentType?
+  uploadedAt      DateTime        @default(now())
+  
+  status          ProcessingStatus @default(PENDING)
+  processingStartedAt DateTime?
+  processingCompletedAt DateTime?
+  
+  extraction      DocumentExtraction?
+  
+  patient         Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  @@map("documents")
+}
+
+enum DocumentType {
+  DISCHARGE_SUMMARY
+  LAB_RESULT
+  CONSULTATION_NOTE
+  PRESCRIPTION
+  RADIOLOGY_REPORT
+  UNKNOWN
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model DocumentExtraction {
+  id              String      @id @default(cuid())
+  documentId      String      @unique
+  
+  extractedData   Json
+  
+  confidenceScore Float?
+  processingTimeMs Int?
+  extractedAt     DateTime    @default(now())
+  
+  validationWarnings Json?
+  validationErrors   Json?
+  
+  document        Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  timelineEvents  TimelineEvent[]
+  
+  @@map("document_extractions")
+}
+
+model TimelineEvent {
+  id              String      @id @default(cuid())
+  patientId       String
+  extractionId    String
+  
+  eventType       EventType
+  eventDate       DateTime
+  description     String      @db.Text
+  
+  structuredData  Json?
+  
+  confidence      Float?
+  metadata        Json?
+  
+  createdAt       DateTime    @default(now())
+  
+  patient         Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  extraction      DocumentExtraction @relation(fields: [extractionId], references: [id], onDelete: Cascade)
+  
+  @@map("timeline_events")
+}
+
+enum EventType {
+  DIAGNOSIS
+  MEDICATION_START
+  MEDICATION_STOP
+  MEDICATION_CHANGE
+  PROCEDURE
+  LAB_RESULT
+  HOSPITAL_ADMISSION
+  HOSPITAL_DISCHARGE
+  OFFICE_VISIT
+  OTHER
+}
