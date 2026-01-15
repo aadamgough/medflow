@@ -43,8 +43,8 @@ model Document {
   userId          String
   
   originalFilename String
-  s3Key           String
-  s3Bucket        String
+  storagePath     String          @map("storage_path")
+  storageBucket   String          @map("storage_bucket")
   fileSize        Int
   mimeType        String
   

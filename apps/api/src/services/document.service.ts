@@ -53,8 +53,8 @@ export class DocumentService {
           userId,
           patientId: validated.patientId,
           originalFilename: file.originalname,
-          s3Key: supabasePath,
-          s3Bucket: 'documents',
+          storagePath: supabasePath,
+          storageBucket: 'documents',
           fileSize: file.size,
           mimeType: file.mimetype,
           documentType: validated.documentType || null,
@@ -163,7 +163,7 @@ export class DocumentService {
 
     // Delete from storage
     try {
-      await storageService.deleteFile(document.s3Key);
+      await storageService.deleteFile(document.storagePath);
     } catch (error) {
       logger.warn('Failed to delete file from storage', { documentId, error });
       // Continue with DB deletion even if storage deletion fails

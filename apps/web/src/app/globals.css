@@ -1,0 +1,141 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* MedFlow Custom Theme - Light Medical */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  
+  /* Component colors */
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  
+  /* Radius - Boxy */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 2px);
+  --radius-2xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 6px;
+  
+  /* MedFlow Light Medical Theme */
+  --background: #FEFBFA;
+  --foreground: #1E293B;
+  
+  --card: #FFFFFF;
+  --card-foreground: #1E293B;
+  
+  --popover: #FFFFFF;
+  --popover-foreground: #1E293B;
+  
+  /* Primary: Medical Blue */
+  --primary: #0369A1;
+  --primary-foreground: #FFFFFF;
+  
+  /* Secondary: Light Blue */
+  --secondary: #E0F2FE;
+  --secondary-foreground: #0369A1;
+  
+  --muted: #F8FAFC;
+  --muted-foreground: #64748B;
+  
+  --accent: #F0F9FF;
+  --accent-foreground: #0369A1;
+  
+  --destructive: #DC2626;
+  
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #0369A1;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#0369A1] to-[#0EA5E9];
+  }
+  
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes ripple-fade-1 {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+@keyframes ripple-fade-2 {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+@keyframes ripple-fade-3 {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+@keyframes ripple-fade-4 {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.animate-ripple-1 {
+  animation: ripple-fade-1 8s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.animate-ripple-2 {
+  animation: ripple-fade-2 10s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.animate-ripple-3 {
+  animation: ripple-fade-3 12s ease-in-out infinite;
+  animation-delay: 4s;
+}
+
+.animate-ripple-4 {
+  animation: ripple-fade-4 9s ease-in-out infinite;
+  animation-delay: 6s;
+}
