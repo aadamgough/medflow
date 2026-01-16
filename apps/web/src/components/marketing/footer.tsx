@@ -6,34 +6,34 @@ import { Separator } from "@/components/ui/separator";
 
 const footerLinks = {
   product: [
-    { label: "Features", href: "#features" },
-    { label: "Pricing", href: "#pricing" },
-    { label: "Security", href: "#security" },
-    { label: "Roadmap", href: "#roadmap" },
+    { label: "Features", href: "#features", disabled: true },
+    { label: "Pricing", href: "#pricing", disabled: true },
+    { label: "Security", href: "#security", disabled: true },
+    { label: "Roadmap", href: "#roadmap", disabled: true },
   ],
   company: [
-    { label: "About", href: "/about" },
-    { label: "Blog", href: "/blog" },
-    { label: "Careers", href: "/careers" },
-    { label: "Contact", href: "/contact" },
+    { label: "About", href: "/about", disabled: true },
+    { label: "Blog", href: "/blog", disabled: true },
+    { label: "Careers", href: "/careers", disabled: true },
+    { label: "Contact", href: "/contact", disabled: true },
   ],
   resources: [
-    { label: "Documentation", href: "/docs" },
-    { label: "API Reference", href: "/api" },
-    { label: "Support", href: "/support" },
-    { label: "Status", href: "/status" },
+    { label: "Documentation", href: "/docs", disabled: true },
+    { label: "API Reference", href: "/api", disabled: true },
+    { label: "Support", href: "/support", disabled: true },
+    { label: "Status", href: "/status", disabled: true },
   ],
   legal: [
-    { label: "Privacy Policy", href: "/privacy" },
-    { label: "Terms of Service", href: "/terms" },
-    { label: "HIPAA Compliance", href: "/hipaa" },
+    { label: "Privacy Policy", href: "/privacy", disabled: true },
+    { label: "Terms of Service", href: "/terms", disabled: true },
+    { label: "HIPAA Compliance", href: "/hipaa", disabled: true },
   ],
 };
 
 const socialLinks = [
-  { icon: Twitter, href: "https://twitter.com", label: "Twitter" },
-  { icon: Github, href: "https://github.com", label: "GitHub" },
-  { icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn" },
+  { icon: Twitter, href: "https://twitter.com", label: "Twitter", disabled: true },
+  { icon: Github, href: "https://github.com", label: "GitHub", disabled: true },
+  { icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn", disabled: true },
 ];
 
 export function Footer() {
@@ -57,12 +57,18 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.product.map((link) => (
                 <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {link.label}
-                  </Link>
+                  {link.disabled ? (
+                    <span className="text-sm text-muted-foreground/50 cursor-not-allowed">
+                      {link.label}
+                    </span>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -74,12 +80,18 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.company.map((link) => (
                 <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {link.label}
-                  </Link>
+                  {link.disabled ? (
+                    <span className="text-sm text-muted-foreground/50 cursor-not-allowed">
+                      {link.label}
+                    </span>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -91,12 +103,18 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.resources.map((link) => (
                 <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {link.label}
-                  </Link>
+                  {link.disabled ? (
+                    <span className="text-sm text-muted-foreground/50 cursor-not-allowed">
+                      {link.label}
+                    </span>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -108,12 +126,18 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.legal.map((link) => (
                 <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {link.label}
-                  </Link>
+                  {link.disabled ? (
+                    <span className="text-sm text-muted-foreground/50 cursor-not-allowed">
+                      {link.label}
+                    </span>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -130,18 +154,28 @@ export function Footer() {
 
           {/* Social links */}
           <div className="flex items-center gap-4">
-            {socialLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={link.label}
-              >
-                <link.icon className="h-5 w-5" />
-              </a>
-            ))}
+            {socialLinks.map((link) =>
+              link.disabled ? (
+                <span
+                  key={link.label}
+                  className="text-muted-foreground/50 cursor-not-allowed"
+                  aria-label={link.label}
+                >
+                  <link.icon className="h-5 w-5" />
+                </span>
+              ) : (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={link.label}
+                >
+                  <link.icon className="h-5 w-5" />
+                </a>
+              )
+            )}
           </div>
         </div>
       </Container>

@@ -15,7 +15,6 @@ import patientRoutes from './routes/patient.routes';
 const app: Express = express();
 const port = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true
@@ -24,18 +23,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Health check
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/patients', patientRoutes);
 // app.use('/api/timeline', timelineRoutes);
 
-// Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: any) => {
   logger.error('Unhandled error', err);
   res.status(500).json({ 
@@ -44,18 +40,14 @@ app.use((err: Error, req: Request, res: Response, next: any) => {
   });
 });
 
-// Start server
 async function startServer() {
   try {
-    // Test database connection
     await prisma.$connect();
     logger.info('✓ Connected to database');
 
-    // Ensure Supabase storage bucket exists
     await storageService.ensureBucketExists();
     logger.info('✓ Storage configured');
 
-    // Start workers if enabled (can be disabled in production to run separately)
     if (process.env.START_WORKERS !== 'false') {
       startWorkers();
       logger.info('✓ Workers started');
@@ -72,7 +64,6 @@ async function startServer() {
   }
 }
 
-// Graceful shutdown
 process.on('SIGINT', async () => {
   logger.info('Shutting down gracefully...');
   await stopWorkers();
