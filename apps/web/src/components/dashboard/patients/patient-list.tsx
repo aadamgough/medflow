@@ -5,7 +5,7 @@ import { Search, Users, Plus, Loader2, ChevronLeft, ChevronRight } from "lucide-
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PatientCard } from "./patient-card";
-import { EmptyState } from "./empty-state";
+import { EmptyState } from "../common/empty-state";
 import { getPatients, type Patient } from "@/lib/api";
 
 const PATIENTS_PER_PAGE = 25;

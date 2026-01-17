@@ -10,7 +10,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DocumentWithExtraction, DocumentType, ProcessingStatus } from "@/lib/api";
-import { DocumentDetailModal } from "./document-detail-modal";
+import { DocumentDetailModal } from "./document-modal";
 
 interface DocumentListDetailedProps {
   documents: DocumentWithExtraction[];

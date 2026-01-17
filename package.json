@@ -8,7 +8,17 @@
     "dev:web": "cd apps/web && npm run dev",
     "build": "npm run build:api && npm run build:web",
     "build:api": "cd apps/api && npm run build",
-    "build:web": "cd apps/web && npm run build"
+    "build:web": "cd apps/web && npm run build",
+    "lint": "npm run lint:api && npm run lint:web",
+    "lint:api": "cd apps/api && npm run lint",
+    "lint:web": "cd apps/web && npm run lint",
+    "lint:fix": "npm run lint:fix:api && npm run lint:fix:web",
+    "lint:fix:api": "cd apps/api && npm run lint:fix",
+    "lint:fix:web": "cd apps/web && npm run lint:fix",
+    "typecheck": "npm run typecheck:api && npm run typecheck:web",
+    "typecheck:api": "cd apps/api && npm run typecheck",
+    "typecheck:web": "cd apps/web && npm run typecheck",
+    "check": "npm run typecheck && npm run lint"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

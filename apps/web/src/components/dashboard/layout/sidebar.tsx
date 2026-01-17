@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Users, Upload, Settings } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
-import { SettingsModal } from "./settings-modal";
+import { SettingsModal } from "../common/settings-modal";
 
 const navItems = [
   { href: "/patients", label: "Patients", icon: Users },

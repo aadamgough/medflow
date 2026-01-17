@@ -136,15 +136,15 @@ export function DocumentDetailModal({
 
               <TabsContent value="extracted" className="mt-6">
                 <ExtractionViewer
-                  data={document.extraction.extractedData}
-                  confidenceScore={document.extraction.confidenceScore}
-                  validationWarnings={document.extraction.validationWarnings}
-                  validationErrors={document.extraction.validationErrors}
+                  data={document.extraction?.extractedData || {}}
+                  confidenceScore={document.extraction?.confidenceScore}
+                  validationWarnings={document.extraction?.validationWarnings}
+                  validationErrors={document.extraction?.validationErrors}
                 />
               </TabsContent>
 
               <TabsContent value="raw" className="mt-6">
-                <JsonViewer data={document.extraction.extractedData} />
+                <JsonViewer data={document.extraction?.extractedData || {}} />
               </TabsContent>
             </Tabs>
           )}

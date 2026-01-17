@@ -1,13 +1,15 @@
-export { Sidebar } from "./sidebar";
-export { Header } from "./header";
-export { EmptyState } from "./empty-state";
-export { PatientCard } from "./patient-card";
-export { PatientList } from "./patient-list";
-export { UploadZone } from "./upload-zone";
-export { SettingsModal } from "./settings-modal";
-export { PatientOverview } from "./patient-overview";
-export { DocumentListDetailed } from "./document-list-detailed";
-export { DocumentDetailModal } from "./document-detail-modal";
-export { TimelineView } from "./timeline-view";
-export { ExtractionViewer } from "./extraction-viewer";
-export { JsonViewer } from "./json-viewer";
+export { Sidebar, Header } from "./layout";
+
+export { PatientCard, PatientList, PatientOverview } from "./patients";
+
+export {
+  DocumentListDetailed,
+  DocumentDetailModal,
+  UploadZone,
+  ExtractionViewer,
+  JsonViewer,
+} from "./documents";
+
+export { TimelineView } from "./timeline";
+
+export { EmptyState, SettingsModal } from "./common";
