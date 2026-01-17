@@ -218,6 +218,86 @@ export class PatientService {
       processingDocuments,
     };
   }
+
+  async getPatientDashboard(patientId: string, userId: string) {
+    // Get patient with all related data
+    const patient = await prisma.patient.findFirst({
+      where: {
+        id: patientId,
+        userId,
+      },
+      include: {
+        documents: {
+          include: {
+            extraction: true,
+          },
+          orderBy: { uploadedAt: 'desc' },
+        },
+        timelineEvents: {
+          include: {
+            extraction: {
+              include: {
+                document: {
+                  select: {
+                    id: true,
+                    originalFilename: true,
+                    documentType: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { eventDate: 'desc' },
+          take: 50,
+        },
+      },
+    });
+
+    if (!patient) {
+      return null;
+    }
+
+    // Calculate statistics
+    const totalDocuments = patient.documents.length;
+    const processedDocuments = patient.documents.filter(
+      (doc) => doc.extraction !== null
+    ).length;
+    const pendingDocuments = patient.documents.filter(
+      (doc) => doc.status === 'PENDING' || doc.status === 'PROCESSING'
+    ).length;
+    const failedDocuments = patient.documents.filter(
+      (doc) => doc.status === 'FAILED'
+    ).length;
+
+    logger.info('Patient dashboard retrieved', {
+      patientId,
+      userId,
+      totalDocuments,
+      processedDocuments,
+    });
+
+    return {
+      patient: {
+        id: patient.id,
+        userId: patient.userId,
+        name: patient.name,
+        dateOfBirth: patient.dateOfBirth,
+        externalId: patient.externalId,
+        metadata: patient.metadata as Record<string, any> | null,
+        createdAt: patient.createdAt,
+        updatedAt: patient.updatedAt,
+      },
+      documents: patient.documents,
+      timelineEvents: patient.timelineEvents,
+      stats: {
+        totalDocuments,
+        processedDocuments,
+        pendingDocuments,
+        failedDocuments,
+        totalTimelineEvents: patient.timelineEvents.length,
+      },
+    };
+  }
 }
 
 export const patientService = new PatientService();

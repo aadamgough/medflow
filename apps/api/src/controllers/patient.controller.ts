@@ -209,6 +209,34 @@ export class PatientController {
       res.status(500).json({ error: 'Failed to retrieve patient summary' });
     }
   }
+
+  async getDashboard(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+      if (!id) {
+        res.status(400).json({ error: 'Patient ID is required' });
+        return;
+      }
+
+      const dashboard = await patientService.getPatientDashboard(id, req.user.id);
+
+      if (!dashboard) {
+        res.status(404).json({ error: 'Patient not found' });
+        return;
+      }
+
+      res.status(200).json(dashboard);
+    } catch (error) {
+      logger.error('Get patient dashboard error', error);
+      res.status(500).json({ error: 'Failed to retrieve patient dashboard' });
+    }
+  }
 }
 
 export const patientController = new PatientController();

@@ -80,6 +80,85 @@ export class AuthController {
       res.status(500).json({ error: 'Internal server error' });
     }
   }
+
+  async refreshToken(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const result = await authService.refreshToken(req.user.id);
+
+      res.status(200).json(result);
+    } catch (error) {
+      logger.error('Token refresh error', error);
+
+      if (error instanceof Error) {
+        if (error.message === 'User not found') {
+          res.status(404).json({ error: error.message });
+          return;
+        }
+      }
+
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  async uploadProfilePicture(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      if (!req.file) {
+        res.status(400).json({ error: 'No file provided' });
+        return;
+      }
+
+      const result = await authService.updateProfilePicture(req.user.id, req.file);
+
+      res.status(200).json(result);
+    } catch (error) {
+      logger.error('Profile picture upload error', error);
+
+      if (error instanceof Error) {
+        if (error.message === 'User not found') {
+          res.status(404).json({ error: error.message });
+          return;
+        }
+        res.status(400).json({ error: error.message });
+        return;
+      }
+
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  async removeProfilePicture(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const result = await authService.removeProfilePicture(req.user.id);
+
+      res.status(200).json(result);
+    } catch (error) {
+      logger.error('Profile picture removal error', error);
+
+      if (error instanceof Error) {
+        if (error.message === 'User not found') {
+          res.status(404).json({ error: error.message });
+          return;
+        }
+      }
+
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
 }
 
 export const authController = new AuthController();

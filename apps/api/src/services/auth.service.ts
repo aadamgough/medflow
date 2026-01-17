@@ -4,6 +4,7 @@ import { prisma } from '../config/database';
 import { generateToken } from '../utils/jwt';
 import { logger } from '../utils/logger';
 import { AuthResponse, RegisterRequest, LoginRequest } from '../types';
+import { storageService } from './storage.service';
 
 const SALT_ROUNDS = 10;
 
@@ -59,6 +60,7 @@ export class AuthService {
           id: user.id,
           email: user.email,
           name: user.name,
+          profilePicture: user.profilePicture,
         },
       };
     } catch (error) {
@@ -105,6 +107,7 @@ export class AuthService {
           id: user.id,
           email: user.email,
           name: user.name,
+          profilePicture: user.profilePicture,
         },
       };
     } catch (error) {
@@ -123,11 +126,100 @@ export class AuthService {
         id: true,
         email: true,
         name: true,
+        profilePicture: true,
         createdAt: true,
       },
     });
 
     return user;
+  }
+
+  async refreshToken(userId: string): Promise<{ token: string }> {
+    logger.info('Token refresh attempt', { userId });
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      logger.warn('Token refresh failed - user not found', { userId });
+      throw new Error('User not found');
+    }
+
+    const token = generateToken(user.id, user.email);
+
+    logger.info('Token refreshed successfully', { userId: user.id });
+
+    return { token };
+  }
+
+  async updateProfilePicture(
+    userId: string,
+    file: Express.Multer.File
+  ): Promise<{ user: { id: string; email: string; name: string | null; profilePicture: string | null } }> {
+    logger.info('Profile picture update attempt', { userId });
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      logger.warn('Profile picture update failed - user not found', { userId });
+      throw new Error('User not found');
+    }
+
+    // Upload the profile picture to Supabase storage
+    const { publicUrl } = await storageService.uploadProfilePicture(file, userId);
+
+    // Update the user's profilePicture field in the database
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { profilePicture: publicUrl },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        profilePicture: true,
+      },
+    });
+
+    logger.info('Profile picture updated successfully', { userId, profilePicture: publicUrl });
+
+    return { user };
+  }
+
+  async removeProfilePicture(userId: string): Promise<{ user: { id: string; email: string; name: string | null; profilePicture: string | null } }> {
+    logger.info('Profile picture removal attempt', { userId });
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      logger.warn('Profile picture removal failed - user not found', { userId });
+      throw new Error('User not found');
+    }
+
+    // Delete the profile picture from Supabase storage
+    await storageService.deleteProfilePicture(userId);
+
+    // Update the user's profilePicture field to null
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { profilePicture: null },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        profilePicture: true,
+      },
+    });
+
+    logger.info('Profile picture removed successfully', { userId });
+
+    return { user };
   }
 }
 

@@ -19,6 +19,9 @@ router.get('/:id', (req, res) => patientController.getById(req, res));
 // GET /api/patients/:id/summary - Get patient summary with document stats
 router.get('/:id/summary', (req, res) => patientController.getSummary(req, res));
 
+// GET /api/patients/:id/dashboard - Get patient dashboard with full details
+router.get('/:id/dashboard', (req, res) => patientController.getDashboard(req, res));
+
 // PUT /api/patients/:id - Update patient
 router.put('/:id', (req, res) => patientController.update(req, res));
 

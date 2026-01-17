@@ -24,6 +24,7 @@ export interface AuthResponse {
     id: string;
     email: string;
     name: string | null;
+    profilePicture?: string | null;
   };
 }
 
@@ -83,4 +84,71 @@ export interface PatientListOptions {
   search?: string;
   limit?: number;
   offset?: number;
+}
+
+// Dashboard types
+export interface DocumentExtraction {
+  id: string;
+  documentId: string;
+  extractedData: Record<string, any>;
+  confidenceScore: number | null;
+  processingTimeMs: number | null;
+  extractedAt: Date;
+  validationWarnings: Record<string, any> | null;
+  validationErrors: Record<string, any> | null;
+}
+
+export interface DocumentWithExtraction {
+  id: string;
+  patientId: string;
+  userId: string;
+  originalFilename: string;
+  storagePath: string;
+  storageBucket: string;
+  fileSize: number;
+  mimeType: string;
+  documentType: string | null;
+  uploadedAt: Date;
+  status: string;
+  processingStartedAt: Date | null;
+  processingCompletedAt: Date | null;
+  extraction: DocumentExtraction | null;
+}
+
+export interface TimelineEventResponse {
+  id: string;
+  patientId: string;
+  extractionId: string;
+  eventType: string;
+  eventDate: Date;
+  description: string;
+  structuredData: Record<string, any> | null;
+  confidence: number | null;
+  metadata: Record<string, any> | null;
+  createdAt: Date;
+  extraction: {
+    id: string;
+    documentId: string;
+    extractedData: Record<string, any>;
+    document: {
+      id: string;
+      originalFilename: string;
+      documentType: string | null;
+    };
+  };
+}
+
+export interface PatientDashboardStats {
+  totalDocuments: number;
+  processedDocuments: number;
+  pendingDocuments: number;
+  failedDocuments: number;
+  totalTimelineEvents: number;
+}
+
+export interface PatientDashboardResponse {
+  patient: PatientResponse;
+  documents: DocumentWithExtraction[];
+  timelineEvents: TimelineEventResponse[];
+  stats: PatientDashboardStats;
 }
