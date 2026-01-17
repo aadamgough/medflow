@@ -4,6 +4,7 @@ export interface User {
   id: string;
   email: string;
   name: string | null;
+  profilePicture?: string | null;
 }
 
 export interface Patient {
@@ -49,6 +50,18 @@ export type DocumentType =
 
 export type ProcessingStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
 
+export type EventType =
+  | "DIAGNOSIS"
+  | "MEDICATION_START"
+  | "MEDICATION_STOP"
+  | "MEDICATION_CHANGE"
+  | "PROCEDURE"
+  | "LAB_RESULT"
+  | "HOSPITAL_ADMISSION"
+  | "HOSPITAL_DISCHARGE"
+  | "OFFICE_VISIT"
+  | "OTHER";
+
 export interface PaginatedResponse<T> {
   data: T[];
   total: number;
@@ -56,10 +69,66 @@ export interface PaginatedResponse<T> {
   offset: number;
 }
 
+// Dashboard types
+export interface DocumentExtraction {
+  id: string;
+  documentId: string;
+  extractedData: Record<string, any>;
+  confidenceScore: number | null;
+  processingTimeMs: number | null;
+  extractedAt: string;
+  validationWarnings: Record<string, any> | null;
+  validationErrors: Record<string, any> | null;
+}
+
+export interface DocumentWithExtraction extends Document {
+  extraction: DocumentExtraction | null;
+}
+
+export interface TimelineEvent {
+  id: string;
+  patientId: string;
+  extractionId: string;
+  eventType: EventType;
+  eventDate: string;
+  description: string;
+  structuredData: Record<string, any> | null;
+  confidence: number | null;
+  metadata: Record<string, any> | null;
+  createdAt: string;
+  extraction: {
+    id: string;
+    documentId: string;
+    extractedData: Record<string, any>;
+    document: {
+      id: string;
+      originalFilename: string;
+      documentType: DocumentType | null;
+    };
+  };
+}
+
+export interface PatientDashboardStats {
+  totalDocuments: number;
+  processedDocuments: number;
+  pendingDocuments: number;
+  failedDocuments: number;
+  totalTimelineEvents: number;
+}
+
+export interface PatientDashboard {
+  patient: Patient;
+  documents: DocumentWithExtraction[];
+  timelineEvents: TimelineEvent[];
+  stats: PatientDashboardStats;
+}
+
 export interface AuthResponse {
   user: User;
   token: string;
 }
+
+const USER_KEY = "medflow_user";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -74,6 +143,27 @@ export function setToken(token: string): void {
 export function removeToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem("medflow_token");
+}
+
+export function getUser(): User | null {
+  if (typeof window === "undefined") return null;
+  const userStr = localStorage.getItem(USER_KEY);
+  if (!userStr) return null;
+  try {
+    return JSON.parse(userStr);
+  } catch {
+    return null;
+  }
+}
+
+export function setUser(user: User): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function removeUser(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(USER_KEY);
 }
 
 export function isAuthenticated(): boolean {
@@ -137,6 +227,7 @@ export async function login(
   });
 
   setToken(response.token);
+  setUser(response.user);
   return response;
 }
 
@@ -151,11 +242,22 @@ export async function signup(
   });
 
   setToken(response.token);
+  setUser(response.user);
   return response;
 }
 
 export function logout(): void {
   removeToken();
+  removeUser();
+}
+
+export async function refreshToken(): Promise<{ token: string }> {
+  const response = await apiFetch<{ token: string }>("/api/auth/refresh", {
+    method: "POST",
+  });
+
+  setToken(response.token);
+  return response;
 }
 
 export async function getPatients(options?: {
@@ -182,6 +284,12 @@ export async function getPatientSummary(
   id: string
 ): Promise<{ patient: PatientSummary }> {
   return apiFetch(`/api/patients/${id}/summary`);
+}
+
+export async function getPatientDashboard(
+  id: string
+): Promise<PatientDashboard> {
+  return apiFetch(`/api/patients/${id}/dashboard`);
 }
 
 export async function createPatient(data: {
@@ -249,4 +357,36 @@ export async function deleteDocument(id: string): Promise<{ message: string }> {
   return apiFetch(`/api/documents/${id}`, {
     method: "DELETE",
   });
+}
+
+export async function uploadProfilePicture(file: File): Promise<{ user: User }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await apiFetch<{ user: User }>("/api/auth/profile-picture", {
+    method: "POST",
+    body: formData,
+  });
+
+  // Update the stored user with the new profile picture
+  const currentUser = getUser();
+  if (currentUser) {
+    setUser({ ...currentUser, profilePicture: response.user.profilePicture });
+  }
+
+  return response;
+}
+
+export async function removeProfilePicture(): Promise<{ user: User }> {
+  const response = await apiFetch<{ user: User }>("/api/auth/profile-picture", {
+    method: "DELETE",
+  });
+
+  // Update the stored user to remove the profile picture
+  const currentUser = getUser();
+  if (currentUser) {
+    setUser({ ...currentUser, profilePicture: null });
+  }
+
+  return response;
 }

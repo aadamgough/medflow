@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Users, Plus, Loader2 } from "lucide-react";
+import { Search, Users, Plus, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PatientCard } from "./patient-card";
 import { EmptyState } from "./empty-state";
 import { getPatients, type Patient } from "@/lib/api";
+
+const PATIENTS_PER_PAGE = 25;
 
 interface PatientListProps {
   onAddPatient?: () => void;
@@ -14,20 +16,27 @@ interface PatientListProps {
 
 export function PatientList({ onAddPatient }: PatientListProps) {
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const totalPages = Math.ceil(total / PATIENTS_PER_PAGE);
 
   useEffect(() => {
     const fetchPatients = async () => {
       try {
         setIsLoading(true);
         setError(null);
+        const offset = (page - 1) * PATIENTS_PER_PAGE;
         const response = await getPatients({
           search: search || undefined,
-          limit: 50,
+          limit: PATIENTS_PER_PAGE,
+          offset,
         });
         setPatients(response.patients);
+        setTotal(response.total);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load patients");
       } finally {
@@ -37,7 +46,48 @@ export function PatientList({ onAddPatient }: PatientListProps) {
 
     const debounce = setTimeout(fetchPatients, search ? 300 : 0);
     return () => clearTimeout(debounce);
+  }, [search, page]);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setPage(1);
   }, [search]);
+
+  const handlePrevPage = () => {
+    if (page > 1) setPage(page - 1);
+  };
+
+  const handleNextPage = () => {
+    if (page < totalPages) setPage(page + 1);
+  };
+
+  const handlePageClick = (pageNum: number) => {
+    setPage(pageNum);
+  };
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      
+      if (page > 3) pages.push("ellipsis");
+      
+      const start = Math.max(2, page - 1);
+      const end = Math.min(totalPages - 1, page + 1);
+      
+      for (let i = start; i <= end; i++) pages.push(i);
+      
+      if (page < totalPages - 2) pages.push("ellipsis");
+      
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
 
   if (isLoading && patients.length === 0) {
     return (
@@ -64,16 +114,23 @@ export function PatientList({ onAddPatient }: PatientListProps) {
 
   return (
     <div>
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Search patients..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      {/* Search and count */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search patients..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        {total > 0 && (
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            {total} {total === 1 ? "patient" : "patients"}
+          </span>
+        )}
       </div>
 
       {/* Results */}
@@ -96,11 +153,69 @@ export function PatientList({ onAddPatient }: PatientListProps) {
           }
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {patients.map((patient) => (
-            <PatientCard key={patient.id} patient={patient} />
-          ))}
-        </div>
+        <>
+          {/* Patient grid */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+            {patients.map((patient) => (
+              <PatientCard key={patient.id} patient={patient} />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 mt-8">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handlePrevPage}
+                disabled={page === 1 || isLoading}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              {getPageNumbers().map((pageNum, idx) =>
+                pageNum === "ellipsis" ? (
+                  <span
+                    key={`ellipsis-${idx}`}
+                    className="px-2 text-muted-foreground"
+                  >
+                    ...
+                  </span>
+                ) : (
+                  <Button
+                    key={pageNum}
+                    variant={page === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handlePageClick(pageNum)}
+                    disabled={isLoading}
+                    className="h-8 w-8 p-0"
+                  >
+                    {pageNum}
+                  </Button>
+                )
+              )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={page === totalPages || isLoading}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* Page info */}
+          {totalPages > 1 && (
+            <p className="text-center text-xs text-muted-foreground mt-3">
+              Showing {(page - 1) * PATIENTS_PER_PAGE + 1}–
+              {Math.min(page * PATIENTS_PER_PAGE, total)} of {total}
+            </p>
+          )}
+        </>
       )}
     </div>
   );

@@ -70,6 +70,38 @@
   --ring: #0369A1;
 }
 
+/* MedFlow Dark Medical Theme */
+.dark {
+  --background: #0F172A;
+  --foreground: #F1F5F9;
+  
+  --card: #1E293B;
+  --card-foreground: #F1F5F9;
+  
+  --popover: #1E293B;
+  --popover-foreground: #F1F5F9;
+  
+  /* Primary: Brighter Medical Blue for dark mode */
+  --primary: #38BDF8;
+  --primary-foreground: #0C4A6E;
+  
+  /* Secondary: Deep Blue */
+  --secondary: #1E3A5F;
+  --secondary-foreground: #7DD3FC;
+  
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  
+  --accent: #0F2942;
+  --accent-foreground: #7DD3FC;
+  
+  --destructive: #F87171;
+  
+  --border: #334155;
+  --input: #334155;
+  --ring: #38BDF8;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

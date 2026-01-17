@@ -33,42 +33,55 @@ function calculateAge(dateOfBirth: string | null): string {
   return `${age}y`;
 }
 
+function formatNameLastFirst(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  
+  const lastName = parts[parts.length - 1];
+  const firstInitial = parts[0].charAt(0).toUpperCase();
+  
+  return `${lastName}, ${firstInitial}.`;
+}
+
 export function PatientCard({ patient }: PatientCardProps) {
   const age = calculateAge(patient.dateOfBirth);
+  const displayName = formatNameLastFirst(patient.name);
 
   return (
     <Link
       href={`/patients/${patient.id}`}
-      className="block p-4 bg-card border border-border rounded-md hover:border-primary/50 hover:shadow-sm transition-all"
+      className="block p-3 bg-card border border-border rounded-md hover:border-primary/50 hover:shadow-sm transition-all"
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-foreground truncate">
-            {patient.name}
-          </h3>
-          {patient.dateOfBirth && (
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {formatDate(patient.dateOfBirth)}
-              {age && <span className="ml-1.5 text-muted-foreground/70">({age})</span>}
-            </p>
-          )}
-        </div>
+      {/* Name and MRN on same row */}
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <h3 className="font-medium text-foreground truncate text-sm">
+          {displayName}
+        </h3>
         {patient.externalId && (
-          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
             {patient.externalId}
           </span>
         )}
       </div>
 
-      {isPatientSummary(patient) && (
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <FileText className="h-3.5 w-3.5" />
+      {/* DOB and age */}
+      {patient.dateOfBirth && (
+        <p className="text-xs text-muted-foreground">
+          {formatDate(patient.dateOfBirth)}
+          {age && <span className="ml-1 text-muted-foreground/70">({age})</span>}
+        </p>
+      )}
+
+      {/* Document info for summary cards */}
+      {isPatientSummary(patient) && patient.documentCount > 0 && (
+        <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-2 pt-2 border-t border-border">
+          <span className="flex items-center gap-1">
+            <FileText className="h-3 w-3" />
             {patient.documentCount} {patient.documentCount === 1 ? "doc" : "docs"}
           </span>
           {patient.lastDocumentAt && (
-            <span className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5" />
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
               {formatDate(patient.lastDocumentAt)}
             </span>
           )}

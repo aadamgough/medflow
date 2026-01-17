@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { Loader2, Users } from "lucide-react";
 import { Header, UploadZone, EmptyState } from "@/components/dashboard";
+import { Combobox, type ComboboxOption } from "@/components/custom";
 import { getPatients, type Patient, type DocumentType } from "@/lib/api";
 
-const documentTypes: { value: DocumentType; label: string }[] = [
+const documentTypes: ComboboxOption[] = [
+  { value: "", label: "Auto-detect" },
   { value: "DISCHARGE_SUMMARY", label: "Discharge Summary" },
   { value: "LAB_RESULT", label: "Lab Result" },
   { value: "CONSULTATION_NOTE", label: "Consultation Note" },
@@ -16,6 +18,7 @@ const documentTypes: { value: DocumentType; label: string }[] = [
 
 export default function UploadPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientOptions, setPatientOptions] = useState<ComboboxOption[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
   const [selectedDocType, setSelectedDocType] = useState<DocumentType | "">("");
   const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +29,15 @@ export default function UploadPage() {
       try {
         const response = await getPatients({ limit: 100 });
         setPatients(response.patients);
+        
+        // Convert patients to combobox options
+        const options: ComboboxOption[] = response.patients.map((patient) => ({
+          value: patient.id,
+          label: patient.name,
+          subtitle: patient.externalId ? `MRN: ${patient.externalId}` : undefined,
+        }));
+        setPatientOptions(options);
+        
         if (response.patients.length > 0) {
           setSelectedPatientId(response.patients[0].id);
         }
@@ -87,18 +99,14 @@ export default function UploadPage() {
           <label className="block text-sm font-medium text-foreground mb-1.5">
             Patient <span className="text-destructive">*</span>
           </label>
-          <select
+          <Combobox
+            options={patientOptions}
             value={selectedPatientId}
-            onChange={(e) => setSelectedPatientId(e.target.value)}
-            className="w-full h-10 px-3 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {patients.map((patient) => (
-              <option key={patient.id} value={patient.id}>
-                {patient.name}
-                {patient.externalId && ` (${patient.externalId})`}
-              </option>
-            ))}
-          </select>
+            onValueChange={setSelectedPatientId}
+            placeholder="Select a patient..."
+            searchPlaceholder="Search patients..."
+            emptyText="No patients found."
+          />
         </div>
 
         {/* Document type selector */}
@@ -106,20 +114,14 @@ export default function UploadPage() {
           <label className="block text-sm font-medium text-foreground mb-1.5">
             Document type
           </label>
-          <select
+          <Combobox
+            options={documentTypes}
             value={selectedDocType}
-            onChange={(e) =>
-              setSelectedDocType(e.target.value as DocumentType | "")
-            }
-            className="w-full h-10 px-3 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">Auto-detect</option>
-            {documentTypes.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={(value) => setSelectedDocType(value as DocumentType | "")}
+            placeholder="Select document type..."
+            searchPlaceholder="Search document types..."
+            emptyText="No document types found."
+          />
           <p className="mt-1.5 text-xs text-muted-foreground">
             Leave as auto-detect to let the system identify the document type
           </p>
