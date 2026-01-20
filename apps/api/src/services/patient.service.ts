@@ -43,7 +43,7 @@ export class PatientService {
           name: validated.name,
           dateOfBirth: validated.dateOfBirth ? new Date(validated.dateOfBirth) : null,
           externalId: validated.externalId || null,
-          metadata: validated.metadata ? (validated.metadata as Prisma.JsonValue) : Prisma.JsonNull,
+          metadata: validated.metadata ?? Prisma.DbNull,
         },
       });
 
@@ -204,10 +204,9 @@ export class PatientService {
     const documentCount = patient.documents.length;
     const lastDocumentAt = patient.documents[0]?.uploadedAt || null;
     const processingDocuments = patient.documents.filter(
-      (doc) => doc.status === 'PENDING' || doc.status === 'PROCESSING'
+      (doc) => doc.status === 'PENDING' || doc.status === 'PREPROCESSING' || doc.status === 'OCR_IN_PROGRESS'
     ).length;
 
-    // Remove documents from response and add summary fields
     const { documents, ...patientData } = patient;
 
     return {
@@ -263,7 +262,7 @@ export class PatientService {
       (doc) => doc.extraction !== null
     ).length;
     const pendingDocuments = patient.documents.filter(
-      (doc) => doc.status === 'PENDING' || doc.status === 'PROCESSING'
+      (doc) => doc.status === 'PENDING' || doc.status === 'PREPROCESSING' || doc.status === 'OCR_IN_PROGRESS'
     ).length;
     const failedDocuments = patient.documents.filter(
       (doc) => doc.status === 'FAILED'

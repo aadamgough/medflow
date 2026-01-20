@@ -169,7 +169,7 @@ export class AuthService {
       throw new Error('User not found');
     }
 
-    // Upload the profile picture to Supabase storage
+    // Upload the profile picture to S3 storage
     const { publicUrl } = await storageService.uploadProfilePicture(file, userId);
 
     // Update the user's profilePicture field in the database
@@ -202,7 +202,7 @@ export class AuthService {
       throw new Error('User not found');
     }
 
-    // Delete the profile picture from Supabase storage
+    // Delete the profile picture from S3 storage
     await storageService.deleteProfilePicture(userId);
 
     // Update the user's profilePicture field to null

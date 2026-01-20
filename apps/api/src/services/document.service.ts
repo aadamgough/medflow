@@ -4,6 +4,7 @@ import { storageService } from './storage.service';
 import { addDocumentToQueue } from '../queues/document.queue';
 import { logger } from '../utils/logger';
 import { DocumentType } from '@prisma/client';
+import { s3Config } from '../config/aws';
 
 const uploadDocumentSchema = z.object({
   patientId: z.string().cuid('Invalid patient ID'),
@@ -38,7 +39,7 @@ export class DocumentService {
         throw new Error('Patient not found or access denied');
       }
 
-      const { path: supabasePath } = await storageService.uploadFile(
+      const { path: storagePath } = await storageService.uploadFile(
         file,
         userId,
         validated.patientId
@@ -49,8 +50,8 @@ export class DocumentService {
           userId,
           patientId: validated.patientId,
           originalFilename: file.originalname,
-          storagePath: supabasePath,
-          storageBucket: 'documents',
+          storagePath,
+          storageBucket: s3Config.documentsBucket,
           fileSize: file.size,
           mimeType: file.mimetype,
           documentType: validated.documentType || null,
@@ -65,7 +66,7 @@ export class DocumentService {
 
       await addDocumentToQueue({
         documentId: document.id,
-        supabasePath,
+        storagePath,
         userId,
         patientId: validated.patientId,
       });
@@ -133,7 +134,7 @@ export class DocumentService {
         extraction: {
           select: {
             id: true,
-            confidenceScore: true,
+            overallConfidence: true,
             extractedAt: true,
           },
         },
@@ -170,7 +171,7 @@ export class DocumentService {
 
   async updateDocumentStatus(
     documentId: string,
-    status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED',
+    status: 'PENDING' | 'PREPROCESSING' | 'OCR_IN_PROGRESS' | 'COMPLETED' | 'FAILED',
     processingData?: {
       processingStartedAt?: Date;
       processingCompletedAt?: Date;

@@ -4,6 +4,10 @@ import { logger } from '../utils/logger';
 import { DocumentProcessingJob } from '../queues/document.queue';
 import { documentService } from '../services/document.service';
 import { storageService } from '../services/storage.service';
+import { ocrOrchestrator } from '../services/ocr';
+import { documentPreprocessor } from '../services/preprocessing.service';
+import { prisma } from '../config/database';
+import { ProcessingStatus } from '@prisma/client';
 
 class DocumentWorker {
   private worker: Worker<DocumentProcessingJob>;
@@ -16,10 +20,10 @@ class DocumentWorker {
       },
       {
         connection: redisConnection,
-        concurrency: 5, // Process up to 5 documents concurrently
+        concurrency: 5,
         limiter: {
-          max: 10, // Max 10 jobs
-          duration: 1000, // per 1 second
+          max: 10,
+          duration: 1000,
         },
       }
     );
@@ -48,13 +52,11 @@ class DocumentWorker {
       logger.error('Worker error', err);
     });
 
-    logger.info('Document worker started', {
-      concurrency: 5,
-    });
+    logger.info('Document worker started', { concurrency: 5 });
   }
 
   private async processDocument(job: Job<DocumentProcessingJob>): Promise<void> {
-    const { documentId, supabasePath, userId, patientId } = job.data;
+    const { documentId, storagePath } = job.data;
 
     try {
       logger.info('Starting document processing', {
@@ -63,78 +65,93 @@ class DocumentWorker {
         attempt: job.attemptsMade + 1,
       });
 
-      // Update status to PROCESSING
-      await documentService.updateDocumentStatus(documentId, 'PROCESSING', {
-        processingStartedAt: new Date(),
-      });
-
-      // Update progress
+      await this.updateStatus(documentId, 'PREPROCESSING', { processingStartedAt: new Date() });
       await job.updateProgress(10);
 
-      // Download file from Supabase Storage
-      logger.info('Downloading file from storage', { supabasePath });
-      const fileBuffer = await storageService.downloadFile(supabasePath);
-      await job.updateProgress(30);
+      logger.info('Downloading file from S3', { storagePath });
+      const fileBuffer = await storageService.downloadFile(storagePath);
+      await job.updateProgress(20);
 
-      // TODO: Week 2 - Call Python service for extraction
-      // For now, simulate processing with a delay
-      logger.info('Processing document (simulated)', { documentId });
-      await this.simulateProcessing(job, fileBuffer);
-      await job.updateProgress(90);
-
-      // Update status to COMPLETED
-      await documentService.updateDocumentStatus(documentId, 'COMPLETED', {
-        processingCompletedAt: new Date(),
+      const document = await prisma.document.findUnique({
+        where: { id: documentId },
+        select: { mimeType: true, documentType: true },
       });
 
+      if (!document) {
+        throw new Error('Document not found');
+      }
+
+      const preprocessed = await documentPreprocessor.preprocess(fileBuffer, document.mimeType);
+      await job.updateProgress(30);
+      await this.updateStatus(documentId, 'OCR_IN_PROGRESS');
+      const ocrResult = await ocrOrchestrator.processDocument(
+        preprocessed.buffer,
+        preprocessed.mimeType,
+        document.documentType || undefined,
+        { enableTables: true, enableForms: true }
+      );
+      await job.updateProgress(70);
+
+      await prisma.ocrResult.create({
+        data: {
+          documentId,
+          ocrEngine: ocrResult.engine,
+          engineVersion: ocrResult.engineVersion,
+          rawText: ocrResult.rawText,
+          rawResponse: ocrResult.rawResponse as object,
+          pages: ocrResult.pages as object[],
+          tables: ocrResult.tables as object[],
+          keyValuePairs: ocrResult.keyValuePairs as object[],
+          overallConfidence: ocrResult.overallConfidence,
+          wordCount: ocrResult.wordCount,
+          processingTimeMs: ocrResult.processingTimeMs,
+        },
+      });
+      await job.updateProgress(80);
+
+      await prisma.document.update({
+        where: { id: documentId },
+        data: { pageCount: preprocessed.pageCount },
+      });
+      await job.updateProgress(90);
+
+      await this.updateStatus(documentId, 'COMPLETED', { processingCompletedAt: new Date() });
       await job.updateProgress(100);
 
       logger.info('Document processing completed successfully', {
         documentId,
         jobId: job.id,
+        ocrEngine: ocrResult.engine,
+        confidence: ocrResult.overallConfidence,
+        wordCount: ocrResult.wordCount,
+        processingTimeMs: ocrResult.processingTimeMs,
       });
     } catch (error) {
-      logger.error('Document processing error', {
-        documentId,
-        error,
+      logger.error('Document processing error', { documentId, error });
+
+      await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          status: 'FAILED',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          retryCount: { increment: 1 },
+        },
       });
 
-      // Update status to FAILED
-      await documentService.updateDocumentStatus(documentId, 'FAILED');
-
-      throw error; // Re-throw to mark job as failed
+      throw error;
     }
   }
 
-  /**
-   * Simulates document processing
-   * TODO: Replace this with actual Python service call in Week 2
-   */
-  private async simulateProcessing(
-    job: Job<DocumentProcessingJob>,
-    fileBuffer: Buffer
-  ): Promise<void> {
-    // Simulate processing time based on file size
-    const processingTime = Math.min(5000, Math.max(1000, fileBuffer.length / 1000));
-
-    logger.info('Simulating document processing', {
-      fileSize: fileBuffer.length,
-      processingTime,
+  private async updateStatus(
+    documentId: string,
+    status: ProcessingStatus,
+    data?: { processingStartedAt?: Date; processingCompletedAt?: Date }
+  ) {
+    await prisma.document.update({
+      where: { id: documentId },
+      data: { status, ...data },
     });
-
-    // Simulate progress updates during processing
-    const steps = 5;
-    const stepTime = processingTime / steps;
-
-    for (let i = 1; i <= steps; i++) {
-      await new Promise((resolve) => setTimeout(resolve, stepTime));
-      const progress = 30 + (i / steps) * 60; // Progress from 30% to 90%
-      await job.updateProgress(progress);
-    }
-
-    // In Week 2, this will be replaced with:
-    // const extractedData = await pythonService.extractDocument(fileBuffer, documentType);
-    // await prisma.documentExtraction.create({ data: { documentId, extractedData, ... } });
+    logger.info('Document status updated', { documentId, status });
   }
 
   async close() {
@@ -143,5 +160,4 @@ class DocumentWorker {
   }
 }
 
-// Create and export worker instance
 export const documentWorker = new DocumentWorker();

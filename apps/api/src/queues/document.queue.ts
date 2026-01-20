@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 
 export interface DocumentProcessingJob {
   documentId: string;
-  supabasePath: string;
+  storagePath: string;
   userId: string;
   patientId: string;
 }

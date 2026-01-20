@@ -1,229 +1,318 @@
-import { getSupabase } from '../config/supabase';
+import {
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { s3Client, s3Config, isAwsConfigured, awsServiceConfig } from '../config/aws';
 import { logger } from '../utils/logger';
 import crypto from 'crypto';
 
 export class StorageService {
-  private readonly bucketName = 'documents';
-  private readonly profilePicturesBucket = 'profile-pictures';
-
   async uploadFile(
     file: Express.Multer.File,
     userId: string,
     patientId: string
   ): Promise<{ path: string; publicUrl: string }> {
+    if (!isAwsConfigured()) {
+      throw new Error('AWS credentials not configured. Cannot upload files.');
+    }
+
     try {
       const fileExtension = file.originalname.split('.').pop();
       const uniqueId = crypto.randomUUID();
-      const filePath = `${userId}/${patientId}/${uniqueId}.${fileExtension}`;
+      const key = `documents/${userId}/${patientId}/${uniqueId}.${fileExtension}`;
 
-      logger.info('Uploading file to Supabase Storage', {
+      logger.info('Uploading file to S3', {
         originalName: file.originalname,
-        path: filePath,
+        key,
         size: file.size,
+        bucket: s3Config.documentsBucket,
       });
 
-      const supabase = getSupabase();
-      const { data, error } = await supabase.storage
-        .from(this.bucketName)
-        .upload(filePath, file.buffer, {
-          contentType: file.mimetype,
-          upsert: false,
-        });
-
-      if (error) {
-        logger.error('Supabase upload error', error);
-        throw new Error(`Failed to upload file: ${error.message}`);
+      if (file.size > awsServiceConfig.s3.maxFileSize) {
+        throw new Error(`File size exceeds maximum allowed size of ${awsServiceConfig.s3.maxFileSize / 1024 / 1024}MB`);
       }
 
-      const { data: urlData } = supabase.storage
-        .from(this.bucketName)
-        .getPublicUrl(filePath);
+      if (!awsServiceConfig.s3.allowedDocumentTypes.includes(file.mimetype)) {
+        throw new Error(`File type ${file.mimetype} is not allowed`);
+      }
 
-      logger.info('File uploaded successfully', { path: filePath });
+      await s3Client.send(new PutObjectCommand({
+        Bucket: s3Config.documentsBucket,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+        Metadata: {
+          'original-filename': encodeURIComponent(file.originalname),
+          'user-id': userId,
+          'patient-id': patientId,
+        },
+      }));
+
+      const signedUrl = await this.getSignedDownloadUrl(key);
+
+      logger.info('File uploaded successfully to S3', { key });
 
       return {
-        path: data.path,
-        publicUrl: urlData.publicUrl,
+        path: key,
+        publicUrl: signedUrl,
       };
     } catch (error) {
-      logger.error('Storage service error', error);
+      logger.error('S3 upload error', error);
       throw error;
     }
   }
 
-  async downloadFile(filePath: string): Promise<Buffer> {
-    try {
-      const supabase = getSupabase();
-      const { data, error } = await supabase.storage
-        .from(this.bucketName)
-        .download(filePath);
+  async downloadFile(key: string): Promise<Buffer> {
+    if (!isAwsConfigured()) {
+      throw new Error('AWS credentials not configured. Cannot download files.');
+    }
 
-      if (error) {
-        logger.error('Supabase download error', error);
-        throw new Error(`Failed to download file: ${error.message}`);
+    try {
+      logger.info('Downloading file from S3', { key, bucket: s3Config.documentsBucket });
+
+      const response = await s3Client.send(new GetObjectCommand({
+        Bucket: s3Config.documentsBucket,
+        Key: key,
+      }));
+
+      if (!response.Body) {
+        throw new Error('Empty response body from S3');
       }
 
-      const arrayBuffer = await data.arrayBuffer();
-      return Buffer.from(arrayBuffer);
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+        chunks.push(chunk);
+      }
+      
+      const buffer = Buffer.concat(chunks);
+      logger.info('File downloaded successfully from S3', { key, size: buffer.length });
+      
+      return buffer;
     } catch (error) {
-      logger.error('Download file error', error);
-      throw error;
+      logger.error('S3 download error', { key, error });
+      throw new Error(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  async deleteFile(filePath: string): Promise<void> {
+  async deleteFile(key: string): Promise<void> {
+    if (!isAwsConfigured()) {
+      throw new Error('AWS credentials not configured. Cannot delete files.');
+    }
+
     try {
-      const supabase = getSupabase();
-      const { error } = await supabase.storage
-        .from(this.bucketName)
-        .remove([filePath]);
+      logger.info('Deleting file from S3', { key, bucket: s3Config.documentsBucket });
 
-      if (error) {
-        logger.error('Supabase delete error', error);
-        throw new Error(`Failed to delete file: ${error.message}`);
-      }
+      await s3Client.send(new DeleteObjectCommand({
+        Bucket: s3Config.documentsBucket,
+        Key: key,
+      }));
 
-      logger.info('File deleted successfully', { path: filePath });
+      logger.info('File deleted successfully from S3', { key });
     } catch (error) {
-      logger.error('Delete file error', error);
-      throw error;
+      logger.error('S3 delete error', { key, error });
+      throw new Error(`Failed to delete file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async getSignedDownloadUrl(key: string, expiresIn?: number): Promise<string> {
+    if (!isAwsConfigured()) {
+      throw new Error('AWS credentials not configured.');
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: s3Config.documentsBucket,
+      Key: key,
+    });
+
+    return getSignedUrl(s3Client, command, {
+      expiresIn: expiresIn || s3Config.downloadUrlExpiration,
+    });
+  }
+
+  async getSignedUploadUrl(
+    key: string,
+    contentType: string,
+    expiresIn?: number
+  ): Promise<string> {
+    if (!isAwsConfigured()) {
+      throw new Error('AWS credentials not configured.');
+    }
+
+    const command = new PutObjectCommand({
+      Bucket: s3Config.documentsBucket,
+      Key: key,
+      ContentType: contentType,
+    });
+
+    return getSignedUrl(s3Client, command, {
+      expiresIn: expiresIn || s3Config.uploadUrlExpiration,
+    });
+  }
+
+  async fileExists(key: string): Promise<boolean> {
+    if (!isAwsConfigured()) {
+      return false;
+    }
+
+    try {
+      await s3Client.send(new HeadObjectCommand({
+        Bucket: s3Config.documentsBucket,
+        Key: key,
+      }));
+      return true;
+    } catch {
+      return false;
     }
   }
 
   async ensureBucketExists(): Promise<void> {
-    try {
-      const supabase = getSupabase();
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const bucketExists = buckets?.some(bucket => bucket.name === this.bucketName);
-
-      if (!bucketExists) {
-        logger.info('Creating documents bucket');
-        const { error } = await supabase.storage.createBucket(this.bucketName, {
-          public: false,
-          fileSizeLimit: 52428800, // 50MB
-        });
-
-        if (error) {
-          logger.error('Failed to create bucket', error);
-        } else {
-          logger.info('Documents bucket created successfully');
-        }
-      }
-    } catch (error) {
-      logger.warn('Could not check/create bucket', error);
-    }
+    logger.info('S3 bucket check - buckets should be pre-created', {
+      documentsBucket: s3Config.documentsBucket,
+      profilePicturesBucket: s3Config.profilePicturesBucket,
+    });
   }
 
   async uploadProfilePicture(
     file: Express.Multer.File,
     userId: string
   ): Promise<{ path: string; publicUrl: string }> {
+    if (!isAwsConfigured()) {
+      throw new Error('AWS credentials not configured. Cannot upload files.');
+    }
+
     try {
       const fileExtension = file.originalname.split('.').pop() || 'jpg';
-      const filePath = `${userId}/profile.${fileExtension}`;
+      const key = `profile-pictures/${userId}/profile.${fileExtension}`;
 
-      logger.info('Uploading profile picture to Supabase Storage', {
+      logger.info('Uploading profile picture to S3', {
         originalName: file.originalname,
-        path: filePath,
+        key,
         size: file.size,
+        bucket: s3Config.profilePicturesBucket,
       });
 
-      const supabase = getSupabase();
-      
-      // First, ensure the bucket exists
-      await this.ensureProfilePicturesBucketExists();
-
-      // Delete any existing profile picture for this user
-      const { data: existingFiles } = await supabase.storage
-        .from(this.profilePicturesBucket)
-        .list(userId);
-
-      if (existingFiles && existingFiles.length > 0) {
-        const filesToDelete = existingFiles.map(f => `${userId}/${f.name}`);
-        await supabase.storage
-          .from(this.profilePicturesBucket)
-          .remove(filesToDelete);
-        logger.info('Deleted existing profile picture(s)', { count: filesToDelete.length });
+      if (file.size > awsServiceConfig.s3.maxProfilePictureSize) {
+        throw new Error(`Profile picture size exceeds maximum allowed size of ${awsServiceConfig.s3.maxProfilePictureSize / 1024 / 1024}MB`);
       }
 
-      // Upload the new profile picture
-      const { data, error } = await supabase.storage
-        .from(this.profilePicturesBucket)
-        .upload(filePath, file.buffer, {
-          contentType: file.mimetype,
-          upsert: true,
-        });
-
-      if (error) {
-        logger.error('Supabase profile picture upload error', error);
-        throw new Error(`Failed to upload profile picture: ${error.message}`);
+      if (!awsServiceConfig.s3.allowedProfilePictureTypes.includes(file.mimetype)) {
+        throw new Error(`File type ${file.mimetype} is not allowed for profile pictures`);
       }
 
-      const { data: urlData } = supabase.storage
-        .from(this.profilePicturesBucket)
-        .getPublicUrl(filePath);
+      await this.deleteExistingProfilePictures(userId);
 
-      logger.info('Profile picture uploaded successfully', { path: filePath });
+      await s3Client.send(new PutObjectCommand({
+        Bucket: s3Config.profilePicturesBucket,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+        ACL: 'public-read',
+        Metadata: {
+          'user-id': userId,
+        },
+      }));
+
+      const publicUrl = `https://${s3Config.profilePicturesBucket}.s3.${s3Config.region}.amazonaws.com/${key}`;
+
+      logger.info('Profile picture uploaded successfully to S3', { key });
 
       return {
-        path: data.path,
-        publicUrl: urlData.publicUrl,
+        path: key,
+        publicUrl,
       };
     } catch (error) {
-      logger.error('Profile picture upload error', error);
+      logger.error('S3 profile picture upload error', error);
       throw error;
     }
   }
 
   async deleteProfilePicture(userId: string): Promise<void> {
+    if (!isAwsConfigured()) {
+      throw new Error('AWS credentials not configured. Cannot delete files.');
+    }
+
     try {
-      const supabase = getSupabase();
-      
-      // List all files in the user's profile pictures folder
-      const { data: existingFiles } = await supabase.storage
-        .from(this.profilePicturesBucket)
-        .list(userId);
-
-      if (existingFiles && existingFiles.length > 0) {
-        const filesToDelete = existingFiles.map(f => `${userId}/${f.name}`);
-        const { error } = await supabase.storage
-          .from(this.profilePicturesBucket)
-          .remove(filesToDelete);
-
-        if (error) {
-          logger.error('Supabase profile picture delete error', error);
-          throw new Error(`Failed to delete profile picture: ${error.message}`);
-        }
-
+      await this.deleteExistingProfilePictures(userId);
         logger.info('Profile picture deleted successfully', { userId });
-      }
     } catch (error) {
-      logger.error('Delete profile picture error', error);
+      logger.error('S3 profile picture delete error', error);
       throw error;
     }
   }
 
-  private async ensureProfilePicturesBucketExists(): Promise<void> {
+  private async deleteExistingProfilePictures(userId: string): Promise<void> {
     try {
-      const supabase = getSupabase();
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const bucketExists = buckets?.some(bucket => bucket.name === this.profilePicturesBucket);
+      const prefix = `profile-pictures/${userId}/`;
+      
+      const listResponse = await s3Client.send(new ListObjectsV2Command({
+        Bucket: s3Config.profilePicturesBucket,
+        Prefix: prefix,
+      }));
 
-      if (!bucketExists) {
-        logger.info('Creating profile-pictures bucket');
-        const { error } = await supabase.storage.createBucket(this.profilePicturesBucket, {
-          public: true, // Profile pictures should be publicly accessible
-          fileSizeLimit: 2097152, // 2MB limit for profile pictures
-        });
-
-        if (error) {
-          logger.error('Failed to create profile-pictures bucket', error);
-        } else {
-          logger.info('Profile-pictures bucket created successfully');
+      if (listResponse.Contents && listResponse.Contents.length > 0) {
+        for (const object of listResponse.Contents) {
+          if (object.Key) {
+            await s3Client.send(new DeleteObjectCommand({
+              Bucket: s3Config.profilePicturesBucket,
+              Key: object.Key,
+            }));
+            logger.info('Deleted existing profile picture', { key: object.Key });
+          }
         }
       }
     } catch (error) {
-      logger.warn('Could not check/create profile-pictures bucket', error);
+      logger.warn('Error deleting existing profile pictures', { userId, error });
+    }
+  }
+
+  async uploadForTextractProcessing(
+    fileBuffer: Buffer,
+    documentId: string,
+    mimeType: string
+  ): Promise<{ bucket: string; key: string }> {
+    if (!isAwsConfigured()) {
+      throw new Error('AWS credentials not configured for S3 upload');
+    }
+
+    const extension = mimeType === 'application/pdf' ? 'pdf' : 'png';
+    const key = `textract-processing/${documentId}.${extension}`;
+
+    logger.info('Uploading to S3 for Textract processing', {
+      bucket: s3Config.documentsBucket,
+      key,
+      size: fileBuffer.length,
+    });
+
+    await s3Client.send(new PutObjectCommand({
+      Bucket: s3Config.documentsBucket,
+      Key: key,
+      Body: fileBuffer,
+      ContentType: mimeType,
+    }));
+
+    return {
+      bucket: s3Config.documentsBucket,
+      key,
+    };
+  }
+
+  async deleteTextractProcessingFile(key: string): Promise<void> {
+    if (!isAwsConfigured()) {
+      return;
+    }
+
+    try {
+      await s3Client.send(new DeleteObjectCommand({
+        Bucket: s3Config.documentsBucket,
+        Key: key,
+      }));
+      logger.info('Deleted Textract processing file from S3', { key });
+    } catch (error) {
+      logger.warn('Failed to delete Textract processing file', { key, error });
     }
   }
 }
