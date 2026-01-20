@@ -337,7 +337,7 @@ export async function uploadDocument(
     formData.append("documentType", documentType);
   }
 
-  return apiFetch("/api/documents/upload", {
+  return apiFetch("/api/documents", {
     method: "POST",
     body: formData,
   });

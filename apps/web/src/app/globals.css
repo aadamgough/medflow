@@ -132,42 +132,87 @@
   }
 }
 
-@keyframes ripple-fade-1 {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+@keyframes subtle-ripple {
+  0%, 100% { 
+    opacity: 0.3;
+    transform: translate(0, 0) scale(1);
+  }
+  50% { 
+    opacity: 0.7;
+    transform: translate(5%, 3%) scale(1.1);
+  }
 }
 
-@keyframes ripple-fade-2 {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+@keyframes subtle-ripple-2 {
+  0%, 100% { 
+    opacity: 0.4;
+    transform: translate(0, 0) scale(1);
+  }
+  50% { 
+    opacity: 0.8;
+    transform: translate(-3%, -2%) scale(1.05);
+  }
 }
 
-@keyframes ripple-fade-3 {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+.animate-subtle-ripple {
+  animation: subtle-ripple 15s ease-in-out infinite;
 }
 
-@keyframes ripple-fade-4 {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+.animate-subtle-ripple-2 {
+  animation: subtle-ripple-2 20s ease-in-out infinite;
+  animation-delay: 5s;
 }
 
-.animate-ripple-1 {
-  animation: ripple-fade-1 8s ease-in-out infinite;
-  animation-delay: 0s;
+/* Checkered border margins - Hex.tech inspired */
+.checkered-border-left,
+.checkered-border-right,
+.checkered-border-top,
+.checkered-border-bottom {
+  position: absolute;
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      #94A3B8 0px,
+      #94A3B8 1px,
+      transparent 1px,
+      transparent 8px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      #94A3B8 0px,
+      #94A3B8 1px,
+      transparent 1px,
+      transparent 8px
+    );
+  background-size: 8px 8px;
+  opacity: 0.3;
 }
 
-.animate-ripple-2 {
-  animation: ripple-fade-2 10s ease-in-out infinite;
-  animation-delay: 2s;
+.checkered-border-left {
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 16px;
 }
 
-.animate-ripple-3 {
-  animation: ripple-fade-3 12s ease-in-out infinite;
-  animation-delay: 4s;
+.checkered-border-right {
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 16px;
 }
 
-.animate-ripple-4 {
-  animation: ripple-fade-4 9s ease-in-out infinite;
-  animation-delay: 6s;
+.checkered-border-top {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 16px;
 }
+
+.checkered-border-bottom {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 16px;
+}
+
