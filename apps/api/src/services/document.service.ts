@@ -18,7 +18,6 @@ export class DocumentService {
     documentType?: DocumentType
   ) {
     try {
-      // Validate input
       const validated = uploadDocumentSchema.parse({ patientId, documentType });
 
       logger.info('Starting document upload', {
@@ -28,7 +27,6 @@ export class DocumentService {
         size: file.size,
       });
 
-      // Verify patient exists and belongs to user
       const patient = await prisma.patient.findFirst({
         where: {
           id: validated.patientId,
@@ -40,14 +38,12 @@ export class DocumentService {
         throw new Error('Patient not found or access denied');
       }
 
-      // Upload file to Supabase Storage
-      const { path: supabasePath, publicUrl } = await storageService.uploadFile(
+      const { path: supabasePath } = await storageService.uploadFile(
         file,
         userId,
         validated.patientId
       );
 
-      // Create document record in database
       const document = await prisma.document.create({
         data: {
           userId,
@@ -67,7 +63,6 @@ export class DocumentService {
         patientId: validated.patientId,
       });
 
-      // Add to processing queue
       await addDocumentToQueue({
         documentId: document.id,
         supabasePath,
@@ -115,7 +110,6 @@ export class DocumentService {
   }
 
   async getDocumentsByPatient(patientId: string, userId: string) {
-    // Verify patient access
     const patient = await prisma.patient.findFirst({
       where: {
         id: patientId,
@@ -161,15 +155,12 @@ export class DocumentService {
       throw new Error('Document not found or access denied');
     }
 
-    // Delete from storage
     try {
       await storageService.deleteFile(document.storagePath);
     } catch (error) {
       logger.warn('Failed to delete file from storage', { documentId, error });
-      // Continue with DB deletion even if storage deletion fails
     }
 
-    // Delete from database (cascade will handle extractions and timeline events)
     await prisma.document.delete({
       where: { id: documentId },
     });

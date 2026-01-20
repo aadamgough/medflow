@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "nodemon --watch src --ext ts --ignore 'src/**/*.spec.ts' --exec tsx src/server.ts",
     "dev:worker": "nodemon --watch src --ext ts --ignore 'src/**/*.spec.ts' --exec tsx src/worker.ts",
     "build": "tsc",
@@ -14,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:seed-patients": "tsx scripts/seed-patients.ts"
   },
   "keywords": [],
   "author": "",

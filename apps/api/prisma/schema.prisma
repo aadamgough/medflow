@@ -8,127 +8,381 @@ datasource db {
 }
 
 model User {
-  id            String      @id @default(cuid())
-  email         String      @unique
-  passwordHash  String
-  name          String?
+  id             String    @id @default(cuid())
+  email          String    @unique
+  passwordHash   String
+  name           String?
   profilePicture String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  patients      Patient[]
-  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  patients Patient[]
+
   @@map("users")
 }
 
 model Patient {
-  id            String      @id @default(cuid())
-  userId        String
-  name          String
-  dateOfBirth   DateTime?
-  externalId    String?
-  metadata      Json?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  documents     Document[]
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  dateOfBirth DateTime?
+  externalId  String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents      Document[]
   timelineEvents TimelineEvent[]
-  
+
   @@map("patients")
 }
 
+// =============================================================================
+// DOCUMENT & EXTRACTION MODELS
+// =============================================================================
+
 model Document {
-  id              String          @id @default(cuid())
-  patientId       String
-  userId          String
-  
+  id        String @id @default(cuid())
+  patientId String
+  userId    String
+
+  // File metadata
   originalFilename String
-  storagePath     String          @map("storage_path")
-  storageBucket   String          @map("storage_bucket")
-  fileSize        Int
-  mimeType        String
-  
-  documentType    DocumentType?
-  uploadedAt      DateTime        @default(now())
-  
-  status          ProcessingStatus @default(PENDING)
-  processingStartedAt DateTime?
+  storagePath      String @map("storage_path")
+  storageBucket    String @map("storage_bucket")
+  fileSize         Int
+  mimeType         String
+  pageCount        Int?
+
+  // Document classification
+  documentType          DocumentType?
+  classifiedDocumentType DocumentType?  // Auto-classified type (may differ from user-provided)
+  classificationConfidence Float?
+
+  // Timestamps
+  uploadedAt            DateTime  @default(now())
+  processingStartedAt   DateTime?
   processingCompletedAt DateTime?
-  
-  extraction      DocumentExtraction?
-  
-  patient         Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  
+
+  // Processing status
+  status       ProcessingStatus @default(PENDING)
+  errorMessage String?          @db.Text
+  retryCount   Int              @default(0)
+
+  // Relations
+  extraction DocumentExtraction?
+  ocrResults OcrResult[]
+  patient    Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([userId])
+  @@index([status])
   @@map("documents")
 }
 
 enum DocumentType {
+  // Clinical documents
   DISCHARGE_SUMMARY
   LAB_RESULT
   CONSULTATION_NOTE
   PRESCRIPTION
   RADIOLOGY_REPORT
+  PATHOLOGY_REPORT
+  OPERATIVE_NOTE
+  PROGRESS_NOTE
+
+  // Administrative documents
+  CONSENT_FORM
+  PATIENT_INTAKE
+  INSURANCE_FORM
+  REFERRAL
+
+  // Research documents
+  CLINICAL_TRIAL
+
+  // Fallback
   UNKNOWN
 }
 
 enum ProcessingStatus {
   PENDING
-  PROCESSING
+  PREPROCESSING
+  OCR_IN_PROGRESS
+  EXTRACTION_IN_PROGRESS
+  VALIDATION_IN_PROGRESS
+  REVIEW_REQUIRED
   COMPLETED
   FAILED
 }
 
-model DocumentExtraction {
-  id              String      @id @default(cuid())
-  documentId      String      @unique
+// =============================================================================
+// OCR RESULTS - Raw output from OCR engines
+// =============================================================================
+
+model OcrResult {
+  id         String @id @default(cuid())
+  documentId String
+
+  // Which engine produced this result
+  ocrEngine OcrEngine
+  engineVersion String?
+
+  // Raw OCR output
+  rawText     String  @db.Text
+  rawResponse Json?   // Full API response for debugging
   
-  extractedData   Json
+  // Structured output from OCR
+  pages       Json?   // Array of page objects with text, bounding boxes
+  tables      Json?   // Extracted tables
+  keyValuePairs Json? // Form key-value pairs (Textract)
   
-  confidenceScore Float?
+  // Quality metrics
+  overallConfidence Float?
+  wordCount         Int?
+  
+  // Processing metadata
   processingTimeMs Int?
-  extractedAt     DateTime    @default(now())
+  processedAt      DateTime @default(now())
   
-  validationWarnings Json?
-  validationErrors   Json?
+  // Cost tracking
+  estimatedCost    Float?   // Estimated cost in USD
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("ocr_results")
+}
+
+enum OcrEngine {
+  AWS_TEXTRACT
+  AWS_TEXTRACT_QUERIES
+  MISTRAL_OCR
+  TESSERACT // Fallback/local option
+}
+
+// =============================================================================
+// DOCUMENT EXTRACTION - Structured extraction results
+// =============================================================================
+
+model DocumentExtraction {
+  id         String @id @default(cuid())
+  documentId String @unique
+
+  // The structured extracted data (schema varies by document type)
+  extractedData Json
+
+  // Extraction metadata
+  extractionMethod ExtractionMethod
+  ocrEnginesUsed   OcrEngine[]
   
-  document        Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  timelineEvents  TimelineEvent[]
+  // Confidence scoring
+  overallConfidence  Float?
+  fieldConfidences   Json?   // { "patientName": 0.95, "dateOfBirth": 0.87, ... }
+  lowConfidenceFields String[] // Fields below threshold
+
+  // Validation results
+  validationStatus   ValidationStatus @default(PENDING)
+  validationWarnings Json?   // Array of { field, message, severity }
+  validationErrors   Json?   // Array of { field, message }
   
+  // Medical entity extraction results
+  medicalEntities    Json?   // NER results: medications, diagnoses, procedures, etc.
+  ontologyCodes      Json?   // Linked codes: ICD-10, SNOMED, RxNorm, LOINC
+
+  // Human review
+  requiresReview     Boolean   @default(false)
+  reviewStatus       ReviewStatus?
+  reviewedAt         DateTime?
+  reviewedBy         String?
+  reviewNotes        String?   @db.Text
+  
+  // Original values before any corrections
+  originalExtractedData Json?
+
+  // Processing metadata
+  processingTimeMs Int?
+  extractedAt      DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  document       Document            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  timelineEvents TimelineEvent[]
+  feedback       ExtractionFeedback[]
+
   @@map("document_extractions")
 }
 
+enum ExtractionMethod {
+  HYBRID_TEXTRACT_MISTRAL
+  TEXTRACT_ONLY
+  MISTRAL_ONLY
+  RULE_BASED
+  LLM_ASSISTED
+}
+
+enum ValidationStatus {
+  PENDING
+  PASSED
+  PASSED_WITH_WARNINGS
+  FAILED
+}
+
+enum ReviewStatus {
+  PENDING_REVIEW
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  CORRECTED
+}
+
+// =============================================================================
+// EXTRACTION FEEDBACK - For continuous improvement
+// =============================================================================
+
+model ExtractionFeedback {
+  id           String @id @default(cuid())
+  extractionId String
+
+  // What was corrected
+  fieldPath       String  // JSON path to the field, e.g., "patient.name" or "testResults[0].value"
+  originalValue   String? @db.Text
+  correctedValue  String? @db.Text
+  
+  // Feedback type
+  feedbackType FeedbackType
+  
+  // Who made the correction
+  correctedBy  String?
+  correctedAt  DateTime @default(now())
+  
+  // Notes
+  notes        String? @db.Text
+
+  extraction DocumentExtraction @relation(fields: [extractionId], references: [id], onDelete: Cascade)
+
+  @@index([extractionId])
+  @@map("extraction_feedback")
+}
+
+enum FeedbackType {
+  CORRECTION       // Value was wrong, corrected
+  CONFIRMATION     // Value was correct, confirmed by human
+  MISSING_FIELD    // Field was missing, added by human
+  FALSE_POSITIVE   // Field was extracted but shouldn't have been
+  FORMATTING       // Value was correct but formatting was wrong
+}
+
+// =============================================================================
+// TIMELINE EVENTS - Clinical events extracted from documents
+// =============================================================================
+
 model TimelineEvent {
-  id              String      @id @default(cuid())
-  patientId       String
-  extractionId    String
-  
-  eventType       EventType
-  eventDate       DateTime
-  description     String      @db.Text
-  
-  structuredData  Json?
-  
-  confidence      Float?
-  metadata        Json?
-  
-  createdAt       DateTime    @default(now())
-  
-  patient         Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  extraction      DocumentExtraction @relation(fields: [extractionId], references: [id], onDelete: Cascade)
-  
+  id           String @id @default(cuid())
+  patientId    String
+  extractionId String
+
+  // Event details
+  eventType   EventType
+  eventDate   DateTime
+  endDate     DateTime? // For events with duration (e.g., hospital stay)
+  description String    @db.Text
+
+  // Structured data specific to event type
+  structuredData Json?
+
+  // Medical coding
+  icdCodes     String[] // ICD-10 codes
+  cptCodes     String[] // CPT procedure codes
+  snomedCodes  String[] // SNOMED CT codes
+  loincCodes   String[] // LOINC codes (for lab results)
+  rxnormCodes  String[] // RxNorm codes (for medications)
+
+  // Confidence and provenance
+  confidence Float?
+  sourceText String? @db.Text // Original text this was extracted from
+  sourcePage Int?    // Page number in document
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  // Relations
+  patient    Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  extraction DocumentExtraction @relation(fields: [extractionId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([eventDate])
+  @@index([eventType])
   @@map("timeline_events")
 }
 
 enum EventType {
+  // Diagnoses
   DIAGNOSIS
+  DIAGNOSIS_RULED_OUT
+
+  // Medications
   MEDICATION_START
   MEDICATION_STOP
   MEDICATION_CHANGE
+  MEDICATION_REFILL
+
+  // Procedures & Tests
   PROCEDURE
+  SURGERY
   LAB_RESULT
+  IMAGING_RESULT
+  VITAL_SIGNS
+
+  // Encounters
   HOSPITAL_ADMISSION
   HOSPITAL_DISCHARGE
+  EMERGENCY_VISIT
   OFFICE_VISIT
+  TELEHEALTH_VISIT
+
+  // Administrative
+  REFERRAL
+  CONSENT_SIGNED
+
+  // Other
+  ALLERGY_IDENTIFIED
+  IMMUNIZATION
   OTHER
+}
+
+// =============================================================================
+// PROCESSING METRICS - For monitoring and optimization
+// =============================================================================
+
+model ProcessingMetrics {
+  id         String   @id @default(cuid())
+  documentId String
+  
+  // Timing breakdown
+  preprocessingMs    Int?
+  ocrTextractMs      Int?
+  ocrMistralMs       Int?
+  entityExtractionMs Int?
+  schemaMappingMs    Int?
+  validationMs       Int?
+  totalMs            Int?
+  
+  // Cost breakdown
+  textractCost       Float?
+  mistralCost        Float?
+  comprehendCost     Float?
+  totalCost          Float?
+  
+  // Quality metrics
+  ocrConfidence      Float?
+  extractionConfidence Float?
+  fieldsExtracted    Int?
+  fieldsValidated    Int?
+  fieldsFailed       Int?
+  
+  createdAt DateTime @default(now())
+
+  @@index([documentId])
+  @@map("processing_metrics")
 }

@@ -43,7 +43,7 @@ export class PatientService {
           name: validated.name,
           dateOfBirth: validated.dateOfBirth ? new Date(validated.dateOfBirth) : null,
           externalId: validated.externalId || null,
-          metadata: validated.metadata ? (validated.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
+          metadata: validated.metadata ? (validated.metadata as Prisma.JsonValue) : Prisma.JsonNull,
         },
       });
 
