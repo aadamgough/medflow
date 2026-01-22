@@ -127,3 +127,42 @@ export const documentTypeSchemas = {
   REFERRAL: 'ConsultationNoteExtraction',
   UNKNOWN: 'ProgressNoteExtraction',
 } as const;
+
+// =============================================================================
+// CLASSIFICATION CONFIGURATION
+// =============================================================================
+
+export const classificationConfig = {
+  /** Minimum confidence for pattern matching to be used without LLM fallback */
+  patternMatchMinConfidence: parseFloat(process.env.CLASSIFICATION_PATTERN_MIN_CONFIDENCE || '0.75'),
+  
+  /** Enable LLM fallback when pattern matching confidence is low */
+  llmFallbackEnabled: process.env.CLASSIFICATION_LLM_FALLBACK !== 'false',
+  
+  /** LLM model to use for classification */
+  llmModel: process.env.MISTRAL_CLASSIFICATION_MODEL || 'mistral-large-latest',
+};
+
+// =============================================================================
+// EXTRACTION LLM CONFIGURATION
+// =============================================================================
+
+export const extractionLlmConfig = {
+  /** LLM model for structured extraction */
+  model: process.env.MISTRAL_EXTRACTION_MODEL || 'mistral-large-latest',
+  
+  /** Low temperature for deterministic extraction */
+  temperature: parseFloat(process.env.EXTRACTION_LLM_TEMPERATURE || '0.1'),
+  
+  /** Maximum tokens for extraction response */
+  maxTokens: parseInt(process.env.EXTRACTION_LLM_MAX_TOKENS || '8192', 10),
+  
+  /** Number of retries on failure */
+  retries: parseInt(process.env.EXTRACTION_LLM_RETRIES || '2', 10),
+  
+  /** Cost per 1K tokens (for tracking) */
+  costPer1kTokens: {
+    input: 0.002,
+    output: 0.006,
+  },
+};

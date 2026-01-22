@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Loader2, Users } from "lucide-react";
 import { Header, UploadZone, EmptyState } from "@/components/dashboard";
 import { Combobox, type ComboboxOption } from "@/components/custom";
-import { getPatients, type Patient, type DocumentType } from "@/lib/api";
+import { type DocumentType } from "@/lib/api";
+import { useAllPatients } from "@/lib/hooks";
 
 const documentTypes: ComboboxOption[] = [
   { value: "", label: "Auto-detect" },
@@ -17,38 +18,26 @@ const documentTypes: ComboboxOption[] = [
 ];
 
 export default function UploadPage() {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [patientOptions, setPatientOptions] = useState<ComboboxOption[]>([]);
+  const { patients, isLoading } = useAllPatients(100);
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
   const [selectedDocType, setSelectedDocType] = useState<DocumentType | "">("");
-  const [isLoading, setIsLoading] = useState(true);
   const [uploadKey, setUploadKey] = useState(0);
 
+  // Convert patients to combobox options (memoized)
+  const patientOptions = useMemo<ComboboxOption[]>(() => {
+    return patients.map((patient) => ({
+      value: patient.id,
+      label: patient.name,
+      subtitle: patient.externalId ? `MRN: ${patient.externalId}` : undefined,
+    }));
+  }, [patients]);
+
+  // Auto-select first patient when loaded
   useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const response = await getPatients({ limit: 100 });
-        setPatients(response.patients);
-        
-        // Convert patients to combobox options
-        const options: ComboboxOption[] = response.patients.map((patient) => ({
-          value: patient.id,
-          label: patient.name,
-          subtitle: patient.externalId ? `MRN: ${patient.externalId}` : undefined,
-        }));
-        setPatientOptions(options);
-        
-        if (response.patients.length > 0) {
-          setSelectedPatientId(response.patients[0].id);
-        }
-      } catch (err) {
-        console.error("Failed to load patients:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchPatients();
-  }, []);
+    if (patients.length > 0 && !selectedPatientId) {
+      setSelectedPatientId(patients[0].id);
+    }
+  }, [patients, selectedPatientId]);
 
   const handleUploadComplete = () => {
     setUploadKey((k) => k + 1);

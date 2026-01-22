@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PatientCard } from "./patient-card";
 import { EmptyState } from "../common/empty-state";
-import { getPatients, type Patient } from "@/lib/api";
+import { usePatients } from "@/lib/hooks";
 
 const PATIENTS_PER_PAGE = 25;
 
@@ -15,43 +15,27 @@ interface PatientListProps {
 }
 
 export function PatientList({ onAddPatient }: PatientListProps) {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1); // Reset to page 1 when search changes
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const offset = (page - 1) * PATIENTS_PER_PAGE;
+  const { patients, total, isLoading, error } = usePatients({
+    search: debouncedSearch || undefined,
+    limit: PATIENTS_PER_PAGE,
+    offset,
+  });
 
   const totalPages = Math.ceil(total / PATIENTS_PER_PAGE);
-
-  useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const offset = (page - 1) * PATIENTS_PER_PAGE;
-        const response = await getPatients({
-          search: search || undefined,
-          limit: PATIENTS_PER_PAGE,
-          offset,
-        });
-        setPatients(response.patients);
-        setTotal(response.total);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load patients");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    const debounce = setTimeout(fetchPatients, search ? 300 : 0);
-    return () => clearTimeout(debounce);
-  }, [search, page]);
-
-  // Reset to page 1 when search changes
-  useEffect(() => {
-    setPage(1);
-  }, [search]);
 
   const handlePrevPage = () => {
     if (page > 1) setPage(page - 1);
@@ -102,7 +86,7 @@ export function PatientList({ onAddPatient }: PatientListProps) {
       <EmptyState
         icon={Users}
         title="Unable to load patients"
-        description={error}
+        description={error instanceof Error ? error.message : "Failed to load patients"}
         action={
           <Button variant="outline" onClick={() => window.location.reload()}>
             Try again

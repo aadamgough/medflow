@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header, PatientList } from "@/components/dashboard";
 import { createPatient } from "@/lib/api";
+import { invalidatePatientsCache } from "@/lib/hooks";
 
 export default function PatientsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -15,7 +16,6 @@ export default function PatientsPage() {
     dateOfBirth: "",
     externalId: "",
   });
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleCreatePatient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +30,8 @@ export default function PatientsPage() {
       });
       setShowAddForm(false);
       setFormData({ name: "", dateOfBirth: "", externalId: "" });
-      setRefreshKey((k) => k + 1);
+      // Invalidate the SWR cache to refresh the list
+      await invalidatePatientsCache();
     } catch (err) {
       console.error("Failed to create patient:", err);
     } finally {
@@ -123,10 +124,7 @@ export default function PatientsPage() {
         </div>
       )}
 
-      <PatientList
-        key={refreshKey}
-        onAddPatient={() => setShowAddForm(true)}
-      />
+      <PatientList onAddPatient={() => setShowAddForm(true)} />
     </div>
   );
 }

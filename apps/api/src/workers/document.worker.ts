@@ -6,8 +6,10 @@ import { documentService } from '../services/document.service';
 import { storageService } from '../services/storage.service';
 import { ocrOrchestrator } from '../services/ocr';
 import { documentPreprocessor } from '../services/preprocessing.service';
+import { documentClassifier, extractionOrchestrator } from '../services/extraction';
 import { prisma } from '../config/database';
-import { ProcessingStatus } from '@prisma/client';
+import { ProcessingStatus, OcrEngine } from '@prisma/client';
+import { OcrPage, OcrTable, OcrKeyValuePair } from '../types/extraction.types';
 
 class DocumentWorker {
   private worker: Worker<DocumentProcessingJob>;
@@ -107,24 +109,105 @@ class DocumentWorker {
           processingTimeMs: ocrResult.processingTimeMs,
         },
       });
-      await job.updateProgress(80);
 
       await prisma.document.update({
         where: { id: documentId },
         data: { pageCount: preprocessed.pageCount },
       });
+      await job.updateProgress(75);
+
+      // ==========================================================================
+      // PHASE 3: Document Classification and Extraction
+      // ==========================================================================
+
+      await this.updateStatus(documentId, 'EXTRACTION_IN_PROGRESS');
+
+      // 1. Classify document type
+      logger.info('Starting document classification', { documentId });
+      const classification = await documentClassifier.classify(
+        ocrResult.rawText,
+        document.documentType
+      );
+      await job.updateProgress(80);
+
+      // 2. Update document with classification result
+      await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          classifiedDocumentType: classification.documentType,
+          classificationConfidence: classification.confidence,
+        },
+      });
+
+      logger.info('Document classified', {
+        documentId,
+        documentType: classification.documentType,
+        confidence: classification.confidence,
+        method: classification.method,
+      });
+
+      // 3. Extract structured data
+      logger.info('Starting structured extraction', { documentId, documentType: classification.documentType });
+
+      const ocrInput = {
+        rawText: ocrResult.rawText,
+        pages: ocrResult.pages as OcrPage[],
+        tables: ocrResult.tables as OcrTable[],
+        keyValuePairs: ocrResult.keyValuePairs as OcrKeyValuePair[],
+        engine: ocrResult.engine as OcrEngine,
+        overallConfidence: ocrResult.overallConfidence,
+      };
+
+      const extraction = await extractionOrchestrator.extract(
+        ocrInput,
+        classification.documentType
+      );
       await job.updateProgress(90);
 
-      await this.updateStatus(documentId, 'COMPLETED', { processingCompletedAt: new Date() });
+      // 4. Determine final status based on extraction results
+      const finalStatus: ProcessingStatus = extraction.requiresReview
+        ? 'REVIEW_REQUIRED'
+        : extraction.validationErrors.length > 0
+        ? 'FAILED'
+        : 'COMPLETED';
+
+      // 5. Create DocumentExtraction record
+      await prisma.documentExtraction.create({
+        data: {
+          documentId,
+          extractedData: extraction.extractedData as object,
+          extractionMethod: extraction.extractionMethod,
+          ocrEnginesUsed: [ocrResult.engine],
+          overallConfidence: extraction.overallConfidence,
+          fieldConfidences: extraction.fieldConfidences as object,
+          lowConfidenceFields: extraction.lowConfidenceFields,
+          validationStatus: extraction.validationErrors.length > 0
+            ? 'FAILED'
+            : extraction.validationWarnings.length > 0
+            ? 'PASSED_WITH_WARNINGS'
+            : 'PASSED',
+          validationWarnings: extraction.validationWarnings as object[],
+          validationErrors: extraction.validationErrors as object[],
+          requiresReview: extraction.requiresReview,
+          processingTimeMs: extraction.processingTimeMs,
+        },
+      });
+
+      await this.updateStatus(documentId, finalStatus, { processingCompletedAt: new Date() });
       await job.updateProgress(100);
 
       logger.info('Document processing completed successfully', {
         documentId,
         jobId: job.id,
         ocrEngine: ocrResult.engine,
-        confidence: ocrResult.overallConfidence,
+        ocrConfidence: ocrResult.overallConfidence,
+        documentType: classification.documentType,
+        classificationConfidence: classification.confidence,
+        classificationMethod: classification.method,
+        extractionConfidence: extraction.overallConfidence,
+        requiresReview: extraction.requiresReview,
         wordCount: ocrResult.wordCount,
-        processingTimeMs: ocrResult.processingTimeMs,
+        totalProcessingTimeMs: ocrResult.processingTimeMs + extraction.processingTimeMs,
       });
     } catch (error) {
       logger.error('Document processing error', { documentId, error });
