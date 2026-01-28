@@ -18,6 +18,9 @@ router.post(
 // GET /api/documents/:id - Get a specific document
 router.get('/:id', (req, res) => documentController.getDocument(req, res));
 
+// GET /api/documents/:id/url - Get a signed URL for viewing/downloading a document
+router.get('/:id/url', (req, res) => documentController.getDocumentUrl(req, res));
+
 // GET /api/documents/patient/:patientId - Get all documents for a patient
 router.get(
   '/patient/:patientId',

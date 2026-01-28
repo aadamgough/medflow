@@ -155,6 +155,35 @@ export class DocumentController {
       res.status(500).json({ error: 'Failed to delete document' });
     }
   }
+
+  async getDocumentUrl(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+      if (!id) {
+        res.status(400).json({ error: 'Document ID is required' });
+        return;
+      }
+
+      const url = await documentService.getDocumentUrl(id, req.user.id);
+
+      res.status(200).json({ url });
+    } catch (error) {
+      logger.error('Get document URL error', error);
+
+      if (error instanceof Error && error.message.includes('not found')) {
+        res.status(404).json({ error: error.message });
+        return;
+      }
+
+      res.status(500).json({ error: 'Failed to get document URL' });
+    }
+  }
 }
 
 export const documentController = new DocumentController();

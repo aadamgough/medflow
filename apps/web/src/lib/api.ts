@@ -48,7 +48,15 @@ export type DocumentType =
   | "RADIOLOGY_REPORT"
   | "UNKNOWN";
 
-export type ProcessingStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type ProcessingStatus = 
+  | "PENDING" 
+  | "PREPROCESSING" 
+  | "OCR_IN_PROGRESS" 
+  | "EXTRACTION_IN_PROGRESS" 
+  | "VALIDATION_IN_PROGRESS"
+  | "REVIEW_REQUIRED"
+  | "COMPLETED" 
+  | "FAILED";
 
 export type EventType =
   | "DIAGNOSIS"
@@ -74,7 +82,7 @@ export interface DocumentExtraction {
   id: string;
   documentId: string;
   extractedData: Record<string, any>;
-  confidenceScore: number | null;
+  overallConfidence: number | null;
   processingTimeMs: number | null;
   extractedAt: string;
   validationWarnings: Record<string, any> | null;
@@ -357,6 +365,10 @@ export async function deleteDocument(id: string): Promise<{ message: string }> {
   return apiFetch(`/api/documents/${id}`, {
     method: "DELETE",
   });
+}
+
+export async function getDocumentUrl(id: string): Promise<{ url: string }> {
+  return apiFetch(`/api/documents/${id}/url`);
 }
 
 export async function uploadProfilePicture(file: File): Promise<{ user: User }> {

@@ -192,6 +192,25 @@ export class DocumentService {
 
     return document;
   }
+
+  async getDocumentUrl(documentId: string, userId: string): Promise<string> {
+    const document = await prisma.document.findFirst({
+      where: {
+        id: documentId,
+        userId,
+      },
+    });
+
+    if (!document) {
+      throw new Error('Document not found or access denied');
+    }
+
+    const signedUrl = await storageService.getSignedDownloadUrl(document.storagePath);
+
+    logger.info('Document signed URL generated', { documentId });
+
+    return signedUrl;
+  }
 }
 
 export const documentService = new DocumentService();

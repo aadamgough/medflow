@@ -12,6 +12,15 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Load sidebar state from localStorage
+  useEffect(() => {
+    const savedState = localStorage.getItem("sidebarCollapsed");
+    if (savedState !== null) {
+      setIsSidebarCollapsed(savedState === "true");
+    }
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -20,6 +29,14 @@ export default function DashboardLayout({
       setIsChecking(false);
     }
   }, [router]);
+
+  const handleToggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const newState = !prev;
+      localStorage.setItem("sidebarCollapsed", String(newState));
+      return newState;
+    });
+  };
 
   if (isChecking) {
     return (
@@ -31,8 +48,12 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar />
-      <main className="pl-56">
+      <Sidebar isCollapsed={isSidebarCollapsed} onToggle={handleToggleSidebar} />
+      <main 
+        className={`transition-all duration-300 ${
+          isSidebarCollapsed ? "pl-16" : "pl-56"
+        }`}
+      >
         <div className="max-w-6xl mx-auto p-8">{children}</div>
       </main>
     </div>

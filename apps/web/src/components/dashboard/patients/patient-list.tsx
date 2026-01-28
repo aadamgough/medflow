@@ -34,6 +34,9 @@ export function PatientList({ onAddPatient }: PatientListProps) {
     limit: PATIENTS_PER_PAGE,
     offset,
   });
+  
+  // Only show full loading state on initial load (no data yet)
+  const showFullLoading = isLoading && patients.length === 0;
 
   const totalPages = Math.ceil(total / PATIENTS_PER_PAGE);
 
@@ -73,7 +76,7 @@ export function PatientList({ onAddPatient }: PatientListProps) {
     return pages;
   };
 
-  if (isLoading && patients.length === 0) {
+  if (showFullLoading) {
     return (
       <div className="flex items-center justify-center py-16">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

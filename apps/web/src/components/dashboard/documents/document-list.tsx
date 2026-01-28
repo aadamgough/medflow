@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   FileText,
   CheckCircle2,
@@ -6,15 +7,24 @@ import {
   AlertCircle,
   Calendar,
   Download,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  Eye,
+  Scan,
+  Brain,
+  ShieldCheck,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DocumentWithExtraction, DocumentType, ProcessingStatus } from "@/lib/api";
-import { DocumentDetailModal } from "./document-modal";
+import { Button } from "@/components/ui/button";
+import { DocumentWithExtraction, DocumentType, ProcessingStatus, deleteDocument } from "@/lib/api";
+import { ConfirmationDialog } from "@/components/shared";
 
 interface DocumentListDetailedProps {
   documents: DocumentWithExtraction[];
   patientId: string;
+  onDocumentDeleted?: () => void;
 }
 
 function formatDate(dateString: string): string {
@@ -47,6 +57,7 @@ function getDocumentTypeLabel(type: DocumentType | null): string {
 }
 
 function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
+  // Completed with extraction
   if (status === "COMPLETED" && hasExtraction) {
     return (
       <Badge variant="default" className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
@@ -55,14 +66,68 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
       </Badge>
     );
   }
-  if (status === "PENDING" || status === "PROCESSING") {
+  
+  // Pending - waiting in queue
+  if (status === "PENDING") {
     return (
       <Badge variant="default" className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20">
         <Clock className="h-3 w-3 mr-1" />
-        {status === "PROCESSING" ? "Processing" : "Pending"}
+        Pending
       </Badge>
     );
   }
+  
+  // Preprocessing - preparing document
+  if (status === "PREPROCESSING") {
+    return (
+      <Badge variant="default" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20">
+        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+        Preprocessing
+      </Badge>
+    );
+  }
+  
+  // OCR in progress - reading document
+  if (status === "OCR_IN_PROGRESS") {
+    return (
+      <Badge variant="default" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20">
+        <Scan className="h-3 w-3 mr-1 animate-pulse" />
+        Reading Document
+      </Badge>
+    );
+  }
+  
+  // Extraction in progress - extracting data
+  if (status === "EXTRACTION_IN_PROGRESS") {
+    return (
+      <Badge variant="default" className="bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20">
+        <Brain className="h-3 w-3 mr-1 animate-pulse" />
+        Extracting Data
+      </Badge>
+    );
+  }
+  
+  // Validation in progress
+  if (status === "VALIDATION_IN_PROGRESS") {
+    return (
+      <Badge variant="default" className="bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20">
+        <ShieldCheck className="h-3 w-3 mr-1 animate-pulse" />
+        Validating
+      </Badge>
+    );
+  }
+  
+  // Review required
+  if (status === "REVIEW_REQUIRED") {
+    return (
+      <Badge variant="default" className="bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20">
+        <Eye className="h-3 w-3 mr-1" />
+        Review Required
+      </Badge>
+    );
+  }
+  
+  // Failed
   if (status === "FAILED") {
     return (
       <Badge variant="default" className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20">
@@ -71,6 +136,8 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
       </Badge>
     );
   }
+  
+  // Completed without extraction
   if (status === "COMPLETED" && !hasExtraction) {
     return (
       <Badge variant="default" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20">
@@ -79,15 +146,68 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
       </Badge>
     );
   }
+  
   return null;
+}
+
+// Helper to check if document is actively processing
+function isProcessing(status: ProcessingStatus): boolean {
+  return [
+    "PENDING",
+    "PREPROCESSING", 
+    "OCR_IN_PROGRESS",
+    "EXTRACTION_IN_PROGRESS",
+    "VALIDATION_IN_PROGRESS"
+  ].includes(status);
 }
 
 export function DocumentListDetailed({
   documents,
   patientId,
+  onDocumentDeleted,
 }: DocumentListDetailedProps) {
-  const [selectedDocument, setSelectedDocument] =
-    useState<DocumentWithExtraction | null>(null);
+  const router = useRouter();
+  const [documentToDelete, setDocumentToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDocumentClick = (documentId: string) => {
+    router.push(`/patients/${patientId}/documents/${documentId}`);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, document: DocumentWithExtraction) => {
+    e.stopPropagation();
+    setDocumentToDelete({
+      id: document.id,
+      name: document.originalFilename,
+    });
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!documentToDelete) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await deleteDocument(documentToDelete.id);
+      setDocumentToDelete(null);
+      if (onDocumentDeleted) {
+        onDocumentDeleted();
+      }
+    } catch (error) {
+      console.error("Failed to delete document:", error);
+      setDeleteError(
+        error instanceof Error ? error.message : "Failed to delete document"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (documents.length === 0) {
     return (
@@ -105,12 +225,18 @@ export function DocumentListDetailed({
 
   return (
     <>
+      {deleteError && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-700 dark:text-red-400 text-sm">
+          {deleteError}
+        </div>
+      )}
+      
       <div className="space-y-3">
         {documents.map((document) => (
           <Card
             key={document.id}
             className="p-4 hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer"
-            onClick={() => setSelectedDocument(document)}
+            onClick={() => handleDocumentClick(document.id)}
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -140,34 +266,43 @@ export function DocumentListDetailed({
                       {formatFileSize(document.fileSize)}
                     </span>
                   </div>
-                  {document.extraction && (
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      Extracted {formatDate(document.extraction.extractedAt)}
-                      {document.extraction.confidenceScore !== null && (
-                        <span className="ml-2">
-                          • Confidence:{" "}
-                          {(document.extraction.confidenceScore * 100).toFixed(
-                            0
-                          )}
-                          %
-                        </span>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => handleDeleteClick(e, document)}
+                className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
           </Card>
         ))}
       </div>
 
-      {selectedDocument && (
-        <DocumentDetailModal
-          document={selectedDocument}
-          open={!!selectedDocument}
-          onClose={() => setSelectedDocument(null)}
-        />
-      )}
+      <ConfirmationDialog
+        open={!!documentToDelete}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setDocumentToDelete(null);
+            setDeleteError(null);
+          }
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Document"
+        description={
+          documentToDelete
+            ? `Are you sure you want to delete "${documentToDelete.name}"? This action cannot be undone and will permanently remove the document and all associated data.`
+            : ""
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        icon={<AlertTriangle className="h-6 w-6 text-destructive" />}
+        isLoading={isDeleting}
+      />
     </>
   );
 }

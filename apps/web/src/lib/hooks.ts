@@ -15,12 +15,13 @@ export function usePatients(options?: {
   limit?: number;
   offset?: number;
 }) {
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
     ["patients", options ?? {}],
     patientsFetcher,
     {
       revalidateOnFocus: false,
       dedupingInterval: 5000,
+      keepPreviousData: true,
     }
   );
 
@@ -30,6 +31,7 @@ export function usePatients(options?: {
     limit: data?.limit ?? 0,
     offset: data?.offset ?? 0,
     isLoading,
+    isValidating,
     error,
     mutate,
   };

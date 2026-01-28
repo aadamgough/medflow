@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
+import { FileText, Clock, AlertCircle, CheckCircle2, Loader2, Scan, Brain, ShieldCheck, Eye } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,9 +8,65 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { DocumentWithExtraction, DocumentType } from "@/lib/api";
+import { DocumentWithExtraction, DocumentType, ProcessingStatus } from "@/lib/api";
 import { ExtractionViewer } from "./extraction-viewer";
 import { JsonViewer } from "./json-viewer";
+
+// Status values that indicate a document is still processing
+const PROCESSING_STATUSES: ProcessingStatus[] = [
+  "PENDING",
+  "PREPROCESSING",
+  "OCR_IN_PROGRESS",
+  "EXTRACTION_IN_PROGRESS",
+  "VALIDATION_IN_PROGRESS",
+];
+
+function getProcessingStatusInfo(status: ProcessingStatus): { icon: React.ReactNode; title: string; description: string } {
+  switch (status) {
+    case "PENDING":
+      return {
+        icon: <Clock className="h-12 w-12 text-yellow-500 mx-auto mb-4" />,
+        title: "Waiting in Queue",
+        description: "This document is waiting to be processed. It will start processing shortly.",
+      };
+    case "PREPROCESSING":
+      return {
+        icon: <Loader2 className="h-12 w-12 text-blue-500 mx-auto mb-4 animate-spin" />,
+        title: "Preprocessing Document",
+        description: "Preparing the document for analysis...",
+      };
+    case "OCR_IN_PROGRESS":
+      return {
+        icon: <Scan className="h-12 w-12 text-blue-500 mx-auto mb-4 animate-pulse" />,
+        title: "Reading Document",
+        description: "Extracting text from the document using OCR...",
+      };
+    case "EXTRACTION_IN_PROGRESS":
+      return {
+        icon: <Brain className="h-12 w-12 text-purple-500 mx-auto mb-4 animate-pulse" />,
+        title: "Extracting Data",
+        description: "Analyzing content and extracting structured data...",
+      };
+    case "VALIDATION_IN_PROGRESS":
+      return {
+        icon: <ShieldCheck className="h-12 w-12 text-indigo-500 mx-auto mb-4 animate-pulse" />,
+        title: "Validating Extraction",
+        description: "Verifying extracted data for accuracy...",
+      };
+    case "REVIEW_REQUIRED":
+      return {
+        icon: <Eye className="h-12 w-12 text-orange-500 mx-auto mb-4" />,
+        title: "Review Required",
+        description: "This document needs manual review before data can be finalized.",
+      };
+    default:
+      return {
+        icon: <Clock className="h-12 w-12 text-yellow-500 mx-auto mb-4" />,
+        title: "Processing",
+        description: "This document is being processed.",
+      };
+  }
+}
 
 interface DocumentDetailModalProps {
   document: DocumentWithExtraction;
@@ -86,17 +142,36 @@ export function DocumentDetailModal({
         <div className="mt-4">
           {!hasExtraction ? (
             <div className="py-12 text-center">
-              {document.status === "PENDING" || document.status === "PROCESSING" ? (
-                <>
-                  <Clock className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
-                    Processing Document
-                  </h3>
-                  <p className="text-muted-foreground">
-                    This document is currently being processed. Extraction data
-                    will be available soon.
-                  </p>
-                </>
+              {PROCESSING_STATUSES.includes(document.status) ? (
+                (() => {
+                  const statusInfo = getProcessingStatusInfo(document.status);
+                  return (
+                    <>
+                      {statusInfo.icon}
+                      <h3 className="text-lg font-semibold text-foreground mb-2">
+                        {statusInfo.title}
+                      </h3>
+                      <p className="text-muted-foreground">
+                        {statusInfo.description}
+                      </p>
+                    </>
+                  );
+                })()
+              ) : document.status === "REVIEW_REQUIRED" ? (
+                (() => {
+                  const statusInfo = getProcessingStatusInfo(document.status);
+                  return (
+                    <>
+                      {statusInfo.icon}
+                      <h3 className="text-lg font-semibold text-foreground mb-2">
+                        {statusInfo.title}
+                      </h3>
+                      <p className="text-muted-foreground">
+                        {statusInfo.description}
+                      </p>
+                    </>
+                  );
+                })()
               ) : document.status === "FAILED" ? (
                 <>
                   <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -126,18 +201,18 @@ export function DocumentDetailModal({
               <TabsList>
                 <TabsTrigger value="extracted">
                   <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Extracted Data
+                  Markdown
                 </TabsTrigger>
                 <TabsTrigger value="raw">
                   <FileText className="h-4 w-4 mr-2" />
-                  Raw JSON
+                  JSON
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="extracted" className="mt-6">
                 <ExtractionViewer
                   data={document.extraction?.extractedData || {}}
-                  confidenceScore={document.extraction?.confidenceScore}
+                  confidenceScore={document.extraction?.overallConfidence}
                   validationWarnings={document.extraction?.validationWarnings}
                   validationErrors={document.extraction?.validationErrors}
                 />

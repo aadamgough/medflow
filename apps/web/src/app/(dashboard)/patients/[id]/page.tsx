@@ -1,16 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Upload, FileText } from "lucide-react";
+import { ArrowLeft, Upload, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getPatientDashboard, PatientDashboard } from "@/lib/api";
+import { getPatientDashboard, PatientDashboard, ProcessingStatus } from "@/lib/api";
 import {
   PatientOverview,
   DocumentListDetailed,
   TimelineView,
 } from "@/components/dashboard";
+
+// Status values that indicate a document is still processing
+const PROCESSING_STATUSES: ProcessingStatus[] = [
+  "PENDING",
+  "PREPROCESSING",
+  "OCR_IN_PROGRESS",
+  "EXTRACTION_IN_PROGRESS",
+  "VALIDATION_IN_PROGRESS",
+];
 
 export default function PatientDashboardPage() {
   const params = useParams();
@@ -19,30 +28,60 @@ export default function PatientDashboardPage() {
 
   const [dashboard, setDashboard] = useState<PatientDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    async function fetchDashboard() {
-      try {
+  const fetchDashboard = useCallback(async (showLoading = true) => {
+    try {
+      if (showLoading) {
         setIsLoading(true);
-        setError(null);
-        const data = await getPatientDashboard(patientId);
-        setDashboard(data);
-      } catch (err) {
-        console.error("Failed to fetch patient dashboard:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load patient data"
-        );
-      } finally {
-        setIsLoading(false);
+      } else {
+        setIsRefreshing(true);
       }
-    }
-
-    if (patientId) {
-      fetchDashboard();
+      setError(null);
+      const data = await getPatientDashboard(patientId);
+      setDashboard(data);
+    } catch (err) {
+      console.error("Failed to fetch patient dashboard:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load patient data"
+      );
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [patientId]);
+
+  // Check if any documents are processing
+  const hasProcessingDocuments = dashboard?.documents.some(
+    (doc) => PROCESSING_STATUSES.includes(doc.status)
+  ) ?? false;
+
+  // Initial load
+  useEffect(() => {
+    if (patientId) {
+      fetchDashboard(true);
+    }
+  }, [patientId, fetchDashboard]);
+
+  // Auto-refresh polling when documents are processing
+  useEffect(() => {
+    if (hasProcessingDocuments) {
+      // Poll every 3 seconds when documents are processing
+      pollingIntervalRef.current = setInterval(() => {
+        fetchDashboard(false);
+      }, 3000);
+    }
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [hasProcessingDocuments, fetchDashboard]);
 
   if (isLoading) {
     return (
@@ -81,7 +120,6 @@ export default function PatientDashboardPage() {
           size="sm"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-foreground">
@@ -95,13 +133,27 @@ export default function PatientDashboardPage() {
         </div>
       </div>
 
+      {/* Processing indicator */}
+      {hasProcessingDocuments && (
+        <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-700 dark:text-blue-400 text-sm">
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          <span>
+            {dashboard.stats.pendingDocuments} document{dashboard.stats.pendingDocuments !== 1 ? 's' : ''} processing...
+            Auto-refreshing
+          </span>
+        </div>
+      )}
+
       {/* Tabs with Actions */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="flex items-center justify-between gap-4">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="documents">
+            <TabsTrigger value="documents" className="flex items-center gap-1">
               Documents ({dashboard.stats.totalDocuments})
+              {dashboard.stats.pendingDocuments > 0 && (
+                <span className="ml-1 flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+              )}
             </TabsTrigger>
             <TabsTrigger value="timeline">
               Timeline ({dashboard.stats.totalTimelineEvents})
@@ -109,14 +161,9 @@ export default function PatientDashboardPage() {
           </TabsList>
           
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setActiveTab("documents")}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              View All Documents
-            </Button>
+            {isRefreshing && (
+              <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
             <Button
               size="sm"
               onClick={() => router.push(`/upload?patientId=${dashboard.patient.id}`)}
@@ -135,6 +182,7 @@ export default function PatientDashboardPage() {
           <DocumentListDetailed
             documents={dashboard.documents}
             patientId={patientId}
+            onDocumentDeleted={fetchDashboard}
           />
         </TabsContent>
 

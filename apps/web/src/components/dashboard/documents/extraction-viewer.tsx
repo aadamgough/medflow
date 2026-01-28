@@ -1,12 +1,59 @@
-import { AlertCircle, CheckCircle2, Info } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Database } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
 
 interface ExtractionViewerProps {
   data: Record<string, any>;
   confidenceScore?: number | null;
   validationWarnings?: Record<string, any> | null;
   validationErrors?: Record<string, any> | null;
+}
+
+// Component for expandable array of simple items (strings/numbers)
+function ExpandableList({ items, maxVisible = 3 }: { items: (string | number)[]; maxVisible?: number }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  if (items.length <= maxVisible) {
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((item, index) => (
+          <Badge key={index} variant="secondary" className="text-xs font-normal">
+            {String(item)}
+          </Badge>
+        ))}
+      </div>
+    );
+  }
+  
+  const visibleItems = isExpanded ? items : items.slice(0, maxVisible);
+  const hiddenCount = items.length - maxVisible;
+  
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {visibleItems.map((item, index) => (
+          <Badge key={index} variant="secondary" className="text-xs font-normal">
+            {String(item)}
+          </Badge>
+        ))}
+      </div>
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-1 text-xs text-primary hover:underline"
+      >
+        {isExpanded ? (
+          <>
+            <ChevronDown className="h-3 w-3" />
+          </>
+        ) : (
+          <>
+            <ChevronRight className="h-3 w-3" />
+          </>
+        )}
+      </button>
+    </div>
+  );
 }
 
 function renderValue(value: any, depth: number = 0): React.ReactNode {
@@ -16,14 +63,16 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
 
   if (typeof value === "boolean") {
     return (
-      <Badge variant={value ? "default" : "outline"}>
+      <Badge variant={value ? "default" : "outline"} className="text-xs">
         {value ? "Yes" : "No"}
       </Badge>
     );
   }
 
   if (typeof value === "number") {
-    return <span className="font-mono">{value}</span>;
+    // Format long decimals
+    const formatted = Number.isInteger(value) ? value : parseFloat(value.toFixed(2));
+    return <span className="font-mono text-sm">{formatted}</span>;
   }
 
   if (typeof value === "string") {
@@ -43,7 +92,7 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
             </span>
           );
         }
-      } catch (e) {
+      } catch {
         // Not a valid date, render as string
       }
     }
@@ -52,28 +101,159 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
 
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      return <span className="text-muted-foreground italic">None</span>;
+      return <span className="text-muted-foreground italic text-sm">None</span>;
     }
+    
+    // For simple arrays (strings/numbers), use expandable list
+    if (value.every(item => typeof item === "string" || typeof item === "number")) {
+      return <ExpandableList items={value as (string | number)[]} />;
+    }
+    
+    // For arrays of objects (like test results), render as distinct cards
+    if (value.every(item => typeof item === "object" && item !== null && !Array.isArray(item))) {
+      return (
+        <div className="space-y-3">
+          {value.map((item, index) => {
+            const entries = Object.entries(item);
+            // Try to find a good title field for the card
+            const titleField = entries.find(([k]) => 
+              k.toLowerCase().includes("name") || 
+              k.toLowerCase().includes("test") ||
+              k.toLowerCase().includes("title")
+            );
+            const title = titleField ? String(titleField[1]) : `Item ${index + 1}`;
+            
+            // Separate into key fields and other fields
+            const keyFields = ["value", "unit", "flag", "status", "referenceRange"];
+            const otherEntries = entries.filter(([k]) => 
+              !keyFields.some(kf => k.toLowerCase().includes(kf.toLowerCase())) &&
+              k !== titleField?.[0]
+            );
+            
+            return (
+              <div 
+                key={index} 
+                className="rounded-lg border bg-card p-3 space-y-2"
+              >
+                {/* Card header with title and key values */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="font-medium text-sm text-foreground">{title}</div>
+                  {/* Show flag as a badge if present */}
+                  {item.flag && (
+                    <Badge 
+                      variant={
+                        String(item.flag).toLowerCase() === "normal" ? "secondary" :
+                        String(item.flag).toLowerCase().includes("high") || 
+                        String(item.flag).toLowerCase().includes("low") ? "destructive" : 
+                        "outline"
+                      }
+                      className="text-xs shrink-0"
+                    >
+                      {String(item.flag)}
+                    </Badge>
+                  )}
+                </div>
+                
+                {/* Primary values in a row */}
+                {(item.value !== undefined || item.unit) && (
+                  <div className="flex items-baseline gap-1">
+                    {item.value !== undefined && (
+                      <span className="text-lg font-semibold text-foreground">
+                        {String(item.value)}
+                      </span>
+                    )}
+                    {item.unit && (
+                      <span className="text-sm text-muted-foreground">{String(item.unit)}</span>
+                    )}
+                    {item.referenceRange && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (Ref: {typeof item.referenceRange === "object" 
+                          ? `${item.referenceRange.low || ""}–${item.referenceRange.high || ""}${item.referenceRange.text ? ` ${item.referenceRange.text}` : ""}`
+                          : String(item.referenceRange)
+                        })
+                      </span>
+                    )}
+                  </div>
+                )}
+                
+                {/* Other fields in a compact grid */}
+                {otherEntries.length > 0 && (
+                  <div className="grid grid-cols-3 gap-x-4 gap-y-1 pt-2 border-t border-border/50">
+                    {otherEntries.map(([k, v]) => (
+                      <div key={k} className="flex flex-col">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                          {formatFieldName(k)}
+                        </span>
+                        <span className="text-xs text-foreground truncate">
+                          {v === null || v === undefined ? "—" : 
+                           typeof v === "object" ? JSON.stringify(v) : String(v)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    
+    // For other complex arrays, render each item with a separator
     return (
-      <ul className="list-disc list-inside space-y-1 ml-2">
+      <div className="space-y-3">
         {value.map((item, index) => (
-          <li key={index} className="text-sm">
+          <div key={index} className="pl-3 border-l-2 border-primary/30">
             {renderValue(item, depth + 1)}
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
     );
   }
 
   if (typeof value === "object") {
+    const entries = Object.entries(value);
+    
+    // For objects with many simple fields, use a responsive grid
+    const simpleEntries = entries.filter(([, v]) => typeof v !== "object" || v === null);
+    const complexEntries = entries.filter(([, v]) => typeof v === "object" && v !== null);
+    
+    if (simpleEntries.length > 0 || complexEntries.length > 0) {
+      return (
+        <div className="space-y-3">
+          {/* Simple fields in a grid */}
+          {simpleEntries.length > 0 && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              {simpleEntries.map(([key, val]) => (
+                <div key={key} className="flex flex-col">
+                  <span className="text-xs text-muted-foreground">{formatFieldName(key)}</span>
+                  <span className="text-sm">{renderValue(val, depth + 1)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Complex fields below */}
+          {complexEntries.map(([key, val]) => (
+            <div key={key} className="space-y-1">
+              <span className="text-xs text-muted-foreground font-medium">
+                {formatFieldName(key)}
+              </span>
+              <div className="text-sm">{renderValue(val, depth + 1)}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
     return (
-      <div className={`space-y-2 ${depth > 0 ? "ml-4 mt-2" : ""}`}>
-        {Object.entries(value).map(([key, val]) => (
-          <div key={key} className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-muted-foreground">
-              {formatFieldName(key)}:
+      <div className="space-y-2">
+        {entries.map(([key, val]) => (
+          <div key={key} className="flex flex-col gap-0.5">
+            <span className="text-xs text-muted-foreground">
+              {formatFieldName(key)}
             </span>
-            <div className="ml-2">{renderValue(val, depth + 1)}</div>
+            <div className="text-sm">{renderValue(val, depth + 1)}</div>
           </div>
         ))}
       </div>
@@ -92,9 +272,49 @@ function formatFieldName(field: string): string {
     .trim();
 }
 
+function formatValue(value: any): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? String(value) : value.toFixed(2);
+  }
+  if (typeof value === "string") {
+    // Check if it's a date string
+    const dateMatch = value.match(/^\d{4}-\d{2}-\d{2}/);
+    if (dateMatch) {
+      try {
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+        }
+      } catch {
+        // Not a valid date
+      }
+    }
+    return value;
+  }
+  if (Array.isArray(value)) return `${value.length} items`;
+  if (typeof value === "object") return "Object";
+  return String(value);
+}
+
+// Check if a key represents metadata
+function isMetadataKey(key: string): boolean {
+  const metadataKeys = [
+    "metadata", "pagecount", "extractedat", "extractionmethod", 
+    "processingtimems", "overallconfidence", "warnings", "ocrengines",
+    "lowconfidencefields", "confidence"
+  ];
+  return metadataKeys.includes(key.toLowerCase().replace(/[_\s]/g, ""));
+}
+
 function groupDataByCategory(
   data: Record<string, any>
-): Record<string, Record<string, any>> {
+): { metadata: Record<string, any>; categories: Record<string, Record<string, any>> } {
+  const metadata: Record<string, any> = {};
   const categories: Record<string, Record<string, any>> = {
     "Patient Information": {},
     Medications: {},
@@ -107,7 +327,10 @@ function groupDataByCategory(
   Object.entries(data).forEach(([key, value]) => {
     const lowerKey = key.toLowerCase();
 
-    if (
+    // Check if this is metadata
+    if (isMetadataKey(key) || (typeof value === "object" && value !== null && !Array.isArray(value) && isMetadataKey(key))) {
+      metadata[key] = value;
+    } else if (
       lowerKey.includes("patient") ||
       lowerKey.includes("name") ||
       lowerKey.includes("dob") ||
@@ -156,8 +379,149 @@ function groupDataByCategory(
   });
 
   // Remove empty categories
-  return Object.fromEntries(
-    Object.entries(categories).filter(([_, value]) => Object.keys(value).length > 0)
+  const filteredCategories = Object.fromEntries(
+    Object.entries(categories).filter(([, value]) => Object.keys(value).length > 0)
+  );
+
+  return { metadata, categories: filteredCategories };
+}
+
+function CollapsibleCard({ 
+  title, 
+  icon, 
+  children,
+  defaultOpen = true 
+}: { 
+  title: string; 
+  icon: React.ReactNode; 
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  
+  return (
+    <Card className="overflow-hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-left"
+      >
+        <div className="flex items-center gap-2">
+          {icon}
+          <h3 className="font-semibold text-foreground">{title}</h3>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+      </button>
+      {isOpen && (
+        <div className="px-4 pb-4 pt-2 border-t border-border/50">
+          {children}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function FieldGrid({ fields }: { fields: Record<string, any> }) {
+  const entries = Object.entries(fields);
+  
+  // Separate simple fields from complex ones
+  const simpleFields: [string, any][] = [];
+  const complexFields: [string, any][] = [];
+  
+  entries.forEach(([key, value]) => {
+    if (
+      value === null || 
+      value === undefined || 
+      typeof value === "string" || 
+      typeof value === "number" || 
+      typeof value === "boolean"
+    ) {
+      simpleFields.push([key, value]);
+    } else {
+      complexFields.push([key, value]);
+    }
+  });
+  
+  return (
+    <div className="space-y-4">
+      {/* Simple fields in a responsive grid */}
+      {simpleFields.length > 0 && (
+        <div className="grid grid-cols-2 gap-4">
+          {simpleFields.map(([field, value]) => (
+            <div key={field} className="space-y-1">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {formatFieldName(field)}
+              </div>
+              <div className="text-sm text-foreground">
+                {renderValue(value)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {/* Complex fields (objects/arrays) get full width */}
+      {complexFields.length > 0 && (
+        <div className="space-y-4">
+          {simpleFields.length > 0 && <div className="border-t border-border pt-4" />}
+          {complexFields.map(([field, value]) => (
+            <div key={field} className="space-y-2">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {formatFieldName(field)}
+              </div>
+              <div className="text-sm text-foreground">
+                {renderValue(value)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Metadata card component - displays extraction metadata as formatted JSON
+function MetadataCard({ metadata, confidenceScore }: { metadata: Record<string, any>; confidenceScore?: number | null }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Flatten nested metadata object if present
+  const flatMetadata: Record<string, any> = {};
+  Object.entries(metadata).forEach(([key, value]) => {
+    if (key.toLowerCase() === "metadata" && typeof value === "object" && value !== null && !Array.isArray(value)) {
+      Object.entries(value).forEach(([k, v]) => {
+        flatMetadata[k] = v;
+      });
+    } else {
+      flatMetadata[key] = value;
+    }
+  });
+  
+  // Add confidence score to metadata if provided
+  if (confidenceScore !== null && confidenceScore !== undefined && !flatMetadata.overallConfidence) {
+    flatMetadata.overallConfidence = confidenceScore;
+  }
+  
+  const jsonString = JSON.stringify(flatMetadata, null, 2);
+  
+  return (
+    <Card className="overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-left"
+      >
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Database className="h-4 w-4" />
+          <h3 className="font-semibold text-foreground">Extraction Metadata</h3>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
+      </button>
+      {isExpanded && (
+        <div className="px-4 pb-4 pt-2 border-t border-border/50">
+          <pre className="bg-muted p-3 rounded-lg overflow-x-auto text-xs font-mono border border-border">
+            <code className="text-foreground">{jsonString}</code>
+          </pre>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -167,84 +531,70 @@ export function ExtractionViewer({
   validationWarnings,
   validationErrors,
 }: ExtractionViewerProps) {
-  const categorizedData = groupDataByCategory(data);
+  const { metadata, categories: categorizedData } = groupDataByCategory(data);
   const hasWarnings = validationWarnings && Object.keys(validationWarnings).length > 0;
   const hasErrors = validationErrors && Object.keys(validationErrors).length > 0;
+  const hasMetadata = Object.keys(metadata).length > 0 || (confidenceScore !== null && confidenceScore !== undefined);
 
   return (
-    <div className="space-y-6">
-      {/* Confidence Score */}
-      {confidenceScore !== null && confidenceScore !== undefined && (
-        <Card className="p-4 bg-muted/50">
-          <div className="flex items-center gap-2">
-            <Info className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              Extraction Confidence:{" "}
-              <span className="font-semibold text-foreground">
-                {(confidenceScore * 100).toFixed(0)}%
-              </span>
-            </span>
-          </div>
-        </Card>
-      )}
-
-      {/* Validation Errors */}
-      {hasErrors && (
-        <Card className="p-4 border-red-500/50 bg-red-500/5">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500 mt-0.5" />
-            <div className="flex-1">
-              <h4 className="text-sm font-semibold text-red-600 dark:text-red-500 mb-2">
-                Validation Errors
-              </h4>
-              <div className="text-sm text-red-700 dark:text-red-400">
-                {renderValue(validationErrors)}
+    <div className="space-y-3">
+      {/* Validation Alerts */}
+      {(hasErrors || hasWarnings) && (
+        <Card className="p-3 border-yellow-500/50 bg-yellow-500/5">
+          <div className="flex flex-wrap items-center gap-4">
+            {hasErrors && (
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <span className="text-sm text-red-600 font-medium">
+                  {Object.keys(validationErrors!).length} Error{Object.keys(validationErrors!).length !== 1 ? "s" : ""}
+                </span>
               </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Validation Warnings */}
-      {hasWarnings && (
-        <Card className="p-4 border-yellow-500/50 bg-yellow-500/5">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500 mt-0.5" />
-            <div className="flex-1">
-              <h4 className="text-sm font-semibold text-yellow-600 dark:text-yellow-500 mb-2">
-                Validation Warnings
-              </h4>
-              <div className="text-sm text-yellow-700 dark:text-yellow-400">
-                {renderValue(validationWarnings)}
+            )}
+            
+            {hasWarnings && (
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-yellow-600" />
+                <span className="text-sm text-yellow-600 font-medium">
+                  {Object.keys(validationWarnings!).length} Warning{Object.keys(validationWarnings!).length !== 1 ? "s" : ""}
+                </span>
               </div>
-            </div>
+            )}
+          </div>
+
+          <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+            {hasErrors && Object.entries(validationErrors!).map(([key, val]) => (
+              <div key={key} className="text-xs text-red-700 dark:text-red-400 flex gap-2">
+                <span className="font-medium">{formatFieldName(key)}:</span>
+                <span>{String(val)}</span>
+              </div>
+            ))}
+            {hasWarnings && Object.entries(validationWarnings!).map(([key, val]) => (
+              <div key={key} className="text-xs text-yellow-700 dark:text-yellow-400 flex gap-2">
+                <span className="font-medium">{formatFieldName(key)}:</span>
+                <span>{String(val)}</span>
+              </div>
+            ))}
           </div>
         </Card>
       )}
 
       {/* Categorized Data */}
       {Object.entries(categorizedData).map(([category, fields]) => (
-        <Card key={category} className="p-4">
-          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-            {category}
-          </h3>
-          <div className="space-y-3">
-            {Object.entries(fields).map(([field, value]) => (
-              <div key={field} className="border-b border-border last:border-0 pb-3 last:pb-0">
-                <div className="text-sm font-medium text-muted-foreground mb-1">
-                  {formatFieldName(field)}
-                </div>
-                <div className="text-base text-foreground">
-                  {renderValue(value)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+        <CollapsibleCard
+          key={category}
+          title={category}
+          icon={<CheckCircle2 className="h-5 w-5 text-primary" />}
+        >
+          <FieldGrid fields={fields} />
+        </CollapsibleCard>
       ))}
 
-      {Object.keys(categorizedData).length === 0 && (
+      {/* Metadata Card - at the bottom */}
+      {hasMetadata && (
+        <MetadataCard metadata={metadata} confidenceScore={confidenceScore} />
+      )}
+
+      {Object.keys(categorizedData).length === 0 && !hasMetadata && (
         <Card className="p-8 text-center">
           <p className="text-muted-foreground">No extracted data available</p>
         </Card>
