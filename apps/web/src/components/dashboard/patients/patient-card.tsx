@@ -52,7 +52,6 @@ export function PatientCard({ patient }: PatientCardProps) {
       href={`/patients/${patient.id}`}
       className="block p-3 bg-card border border-border rounded-md hover:border-primary/50 hover:shadow-sm transition-all"
     >
-      {/* Name and MRN on same row */}
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <h3 className="font-medium text-foreground truncate text-sm">
           {displayName}
@@ -64,7 +63,6 @@ export function PatientCard({ patient }: PatientCardProps) {
         )}
       </div>
 
-      {/* DOB and age */}
       {patient.dateOfBirth && (
         <p className="text-xs text-muted-foreground">
           {formatDate(patient.dateOfBirth)}
@@ -72,7 +70,6 @@ export function PatientCard({ patient }: PatientCardProps) {
         </p>
       )}
 
-      {/* Document info for summary cards */}
       {isPatientSummary(patient) && patient.documentCount > 0 && (
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-2 pt-2 border-t border-border">
           <span className="flex items-center gap-1">

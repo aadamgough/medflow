@@ -42,7 +42,6 @@ export function PatientOverview({ dashboard }: PatientOverviewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Patient Info Card */}
       <Card className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -54,7 +53,6 @@ export function PatientOverview({ dashboard }: PatientOverviewProps) {
             variant="outline"
             size="sm"
             onClick={() => {
-              // TODO: Implement edit patient functionality
               console.log("Edit patient");
             }}
           >
@@ -117,7 +115,6 @@ export function PatientOverview({ dashboard }: PatientOverviewProps) {
         </div>
       </Card>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center gap-3">
@@ -176,7 +173,6 @@ export function PatientOverview({ dashboard }: PatientOverviewProps) {
         </Card>
       </div>
 
-      {/* Recent Activity Summary */}
       {stats.totalTimelineEvents > 0 && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-foreground mb-2">

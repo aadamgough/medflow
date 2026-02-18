@@ -19,11 +19,10 @@ export function PatientList({ onAddPatient }: PatientListProps) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1); // Reset to page 1 when search changes
+      setPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
@@ -35,7 +34,6 @@ export function PatientList({ onAddPatient }: PatientListProps) {
     offset,
   });
   
-  // Only show full loading state on initial load (no data yet)
   const showFullLoading = isLoading && patients.length === 0;
 
   const totalPages = Math.ceil(total / PATIENTS_PER_PAGE);
@@ -52,7 +50,6 @@ export function PatientList({ onAddPatient }: PatientListProps) {
     setPage(pageNum);
   };
 
-  // Generate page numbers to display
   const getPageNumbers = () => {
     const pages: (number | "ellipsis")[] = [];
     
@@ -101,7 +98,6 @@ export function PatientList({ onAddPatient }: PatientListProps) {
 
   return (
     <div>
-      {/* Search and count */}
       <div className="flex items-center gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -120,7 +116,6 @@ export function PatientList({ onAddPatient }: PatientListProps) {
         )}
       </div>
 
-      {/* Results */}
       {patients.length === 0 ? (
         <EmptyState
           icon={Users}
@@ -141,14 +136,12 @@ export function PatientList({ onAddPatient }: PatientListProps) {
         />
       ) : (
         <>
-          {/* Patient grid */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {patients.map((patient) => (
               <PatientCard key={patient.id} patient={patient} />
             ))}
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-1 mt-8">
               <Button
@@ -195,7 +188,6 @@ export function PatientList({ onAddPatient }: PatientListProps) {
             </div>
           )}
 
-          {/* Page info */}
           {totalPages > 1 && (
             <p className="text-center text-xs text-muted-foreground mt-3">
               Showing {(page - 1) * PATIENTS_PER_PAGE + 1}–

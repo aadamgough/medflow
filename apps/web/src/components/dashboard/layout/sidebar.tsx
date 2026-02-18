@@ -38,14 +38,12 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           isCollapsed ? "w-16" : "w-56"
         }`}
       >
-        {/* Logo */}
         <div className="h-14 flex items-center border-b border-border px-4">
           <Link href="/patients" className={`flex items-center ${isCollapsed ? "justify-center w-full" : ""}`}>
             <Logo size="sm" showText={showText} />
           </Link>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 p-3 overflow-hidden">
           <ul className="space-y-1">
             {navItems.map((item) => {
@@ -70,7 +68,6 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           </ul>
         </nav>
 
-        {/* Settings */}
         <div className="p-3 border-t border-border">
           <button
             onClick={() => setSettingsOpen(true)}
@@ -84,7 +81,6 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           </button>
         </div>
 
-        {/* Collapse Toggle Button */}
         <div className={`p-2 border-t border-border flex ${isCollapsed ? "justify-center" : "justify-end"}`}>
           <Button
             variant="ghost"

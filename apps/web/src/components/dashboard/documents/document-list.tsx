@@ -57,7 +57,6 @@ function getDocumentTypeLabel(type: DocumentType | null): string {
 }
 
 function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
-  // Completed with extraction
   if (status === "COMPLETED" && hasExtraction) {
     return (
       <Badge variant="default" className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
@@ -67,7 +66,6 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
     );
   }
   
-  // Pending - waiting in queue
   if (status === "PENDING") {
     return (
       <Badge variant="default" className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20">
@@ -77,7 +75,6 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
     );
   }
   
-  // Preprocessing - preparing document
   if (status === "PREPROCESSING") {
     return (
       <Badge variant="default" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20">
@@ -87,7 +84,6 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
     );
   }
   
-  // OCR in progress - reading document
   if (status === "OCR_IN_PROGRESS") {
     return (
       <Badge variant="default" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20">
@@ -97,7 +93,6 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
     );
   }
   
-  // Extraction in progress - extracting data
   if (status === "EXTRACTION_IN_PROGRESS") {
     return (
       <Badge variant="default" className="bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20">
@@ -107,7 +102,6 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
     );
   }
   
-  // Validation in progress
   if (status === "VALIDATION_IN_PROGRESS") {
     return (
       <Badge variant="default" className="bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20">
@@ -117,7 +111,6 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
     );
   }
   
-  // Review required
   if (status === "REVIEW_REQUIRED") {
     return (
       <Badge variant="default" className="bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20">
@@ -127,7 +120,6 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
     );
   }
   
-  // Failed
   if (status === "FAILED") {
     return (
       <Badge variant="default" className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20">
@@ -137,7 +129,6 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
     );
   }
   
-  // Completed without extraction
   if (status === "COMPLETED" && !hasExtraction) {
     return (
       <Badge variant="default" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20">
@@ -150,7 +141,6 @@ function getStatusBadge(status: ProcessingStatus, hasExtraction: boolean) {
   return null;
 }
 
-// Helper to check if document is actively processing
 function isProcessing(status: ProcessingStatus): boolean {
   return [
     "PENDING",

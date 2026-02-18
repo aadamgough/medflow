@@ -11,7 +11,6 @@ interface ExtractionViewerProps {
   validationErrors?: Record<string, any> | null;
 }
 
-// Component for expandable array of simple items (strings/numbers)
 function ExpandableList({ items, maxVisible = 3 }: { items: (string | number)[]; maxVisible?: number }) {
   const [isExpanded, setIsExpanded] = useState(false);
   
@@ -71,13 +70,11 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
   }
 
   if (typeof value === "number") {
-    // Format long decimals
     const formatted = Number.isInteger(value) ? value : parseFloat(value.toFixed(2));
     return <span className="font-mono text-sm">{formatted}</span>;
   }
 
   if (typeof value === "string") {
-    // Check if it's a date string
     const dateMatch = value.match(/^\d{4}-\d{2}-\d{2}/);
     if (dateMatch) {
       try {
@@ -94,7 +91,6 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
           );
         }
       } catch {
-        // Not a valid date, render as string
       }
     }
     return <span>{value}</span>;
@@ -105,18 +101,15 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
       return <span className="text-muted-foreground italic text-sm">None</span>;
     }
     
-    // For simple arrays (strings/numbers), use expandable list
     if (value.every(item => typeof item === "string" || typeof item === "number")) {
       return <ExpandableList items={value as (string | number)[]} />;
     }
     
-    // For arrays of objects (like test results), render as distinct cards
     if (value.every(item => typeof item === "object" && item !== null && !Array.isArray(item))) {
       return (
         <div className="space-y-3">
           {value.map((item, index) => {
             const entries = Object.entries(item);
-            // Try to find a good title field for the card
             const titleField = entries.find(([k]) => 
               k.toLowerCase().includes("name") || 
               k.toLowerCase().includes("test") ||
@@ -124,7 +117,6 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
             );
             const title = titleField ? String(titleField[1]) : `Item ${index + 1}`;
             
-            // Separate into key fields and other fields
             const keyFields = ["value", "unit", "flag", "status", "referenceRange"];
             const otherEntries = entries.filter(([k]) => 
               !keyFields.some(kf => k.toLowerCase().includes(kf.toLowerCase())) &&
@@ -136,10 +128,8 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
                 key={index} 
                 className="rounded-lg border bg-card p-3 space-y-2"
               >
-                {/* Card header with title and key values */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="font-medium text-sm text-foreground">{title}</div>
-                  {/* Show flag as a badge if present */}
                   {item.flag && (
                     <Badge 
                       variant={
@@ -155,7 +145,6 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
                   )}
                 </div>
                 
-                {/* Primary values in a row */}
                 {(item.value !== undefined || item.unit) && (
                   <div className="flex items-baseline gap-1">
                     {item.value !== undefined && (
@@ -177,7 +166,6 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
                   </div>
                 )}
                 
-                {/* Other fields in a compact grid */}
                 {otherEntries.length > 0 && (
                   <div className="grid grid-cols-3 gap-x-4 gap-y-1 pt-2 border-t border-border/50">
                     {otherEntries.map(([k, v]) => (
@@ -200,7 +188,6 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
       );
     }
     
-    // For other complex arrays, render each item with a separator
     return (
       <div className="space-y-3">
         {value.map((item, index) => (
@@ -214,15 +201,13 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
 
   if (typeof value === "object") {
     const entries = Object.entries(value);
-    
-    // For objects with many simple fields, use a responsive grid
+
     const simpleEntries = entries.filter(([, v]) => typeof v !== "object" || v === null);
     const complexEntries = entries.filter(([, v]) => typeof v === "object" && v !== null);
     
     if (simpleEntries.length > 0 || complexEntries.length > 0) {
       return (
         <div className="space-y-3">
-          {/* Simple fields in a grid */}
           {simpleEntries.length > 0 && (
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
               {simpleEntries.map(([key, val]) => (
@@ -234,7 +219,6 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
             </div>
           )}
           
-          {/* Complex fields below */}
           {complexEntries.map(([key, val]) => (
             <div key={key} className="space-y-1">
               <span className="text-xs text-muted-foreground font-medium">
@@ -265,7 +249,6 @@ function renderValue(value: any, depth: number = 0): React.ReactNode {
 }
 
 function formatFieldName(field: string): string {
-  // Convert camelCase or snake_case to Title Case
   return field
     .replace(/([A-Z])/g, " $1")
     .replace(/_/g, " ")
@@ -279,7 +262,6 @@ function formatValue(value: any): string {
     return Number.isInteger(value) ? String(value) : value.toFixed(2);
   }
   if (typeof value === "string") {
-    // Check if it's a date string
     const dateMatch = value.match(/^\d{4}-\d{2}-\d{2}/);
     if (dateMatch) {
       try {
@@ -292,7 +274,6 @@ function formatValue(value: any): string {
           });
         }
       } catch {
-        // Not a valid date
       }
     }
     return value;
@@ -302,7 +283,6 @@ function formatValue(value: any): string {
   return String(value);
 }
 
-// Check if a key represents metadata
 function isMetadataKey(key: string): boolean {
   const metadataKeys = [
     "metadata", "pagecount", "extractedat", "extractionmethod", 
@@ -328,7 +308,6 @@ function groupDataByCategory(
   Object.entries(data).forEach(([key, value]) => {
     const lowerKey = key.toLowerCase();
 
-    // Check if this is metadata
     if (isMetadataKey(key) || (typeof value === "object" && value !== null && !Array.isArray(value) && isMetadataKey(key))) {
       metadata[key] = value;
     } else if (
@@ -379,7 +358,6 @@ function groupDataByCategory(
     }
   });
 
-  // Remove empty categories
   const filteredCategories = Object.fromEntries(
     Object.entries(categories).filter(([, value]) => Object.keys(value).length > 0)
   );
@@ -424,7 +402,6 @@ function CollapsibleCard({
 function FieldGrid({ fields }: { fields: Record<string, any> }) {
   const entries = Object.entries(fields);
   
-  // Separate simple fields from complex ones
   const simpleFields: [string, any][] = [];
   const complexFields: [string, any][] = [];
   
@@ -444,7 +421,6 @@ function FieldGrid({ fields }: { fields: Record<string, any> }) {
   
   return (
     <div className="space-y-4">
-      {/* Simple fields in a responsive grid */}
       {simpleFields.length > 0 && (
         <div className="grid grid-cols-2 gap-4">
           {simpleFields.map(([field, value]) => (
@@ -460,7 +436,6 @@ function FieldGrid({ fields }: { fields: Record<string, any> }) {
         </div>
       )}
       
-      {/* Complex fields (objects/arrays) get full width */}
       {complexFields.length > 0 && (
         <div className="space-y-4">
           {simpleFields.length > 0 && <div className="border-t border-border pt-4" />}
@@ -480,11 +455,9 @@ function FieldGrid({ fields }: { fields: Record<string, any> }) {
   );
 }
 
-// Metadata card component - displays extraction metadata as formatted JSON
 function MetadataCard({ metadata, confidenceScore }: { metadata: Record<string, any>; confidenceScore?: number | null }) {
   const [isExpanded, setIsExpanded] = useState(false);
   
-  // Flatten nested metadata object if present
   const flatMetadata: Record<string, any> = {};
   Object.entries(metadata).forEach(([key, value]) => {
     if (key.toLowerCase() === "metadata" && typeof value === "object" && value !== null && !Array.isArray(value)) {
@@ -496,7 +469,6 @@ function MetadataCard({ metadata, confidenceScore }: { metadata: Record<string, 
     }
   });
   
-  // Add confidence score to metadata if provided
   if (confidenceScore !== null && confidenceScore !== undefined && !flatMetadata.overallConfidence) {
     flatMetadata.overallConfidence = confidenceScore;
   }
@@ -539,7 +511,6 @@ export function ExtractionViewer({
 
   return (
     <div className="space-y-3">
-      {/* Validation Alerts */}
       {(hasErrors || hasWarnings) && (
         <Card className="p-3 border-yellow-500/50 bg-yellow-500/5">
           <div className="flex flex-wrap items-center gap-4">
@@ -579,7 +550,6 @@ export function ExtractionViewer({
         </Card>
       )}
 
-      {/* Categorized Data */}
       {Object.entries(categorizedData).map(([category, fields]) => (
         <CollapsibleCard
           key={category}
@@ -590,7 +560,6 @@ export function ExtractionViewer({
         </CollapsibleCard>
       ))}
 
-      {/* Metadata Card - at the bottom */}
       {hasMetadata && (
         <MetadataCard metadata={metadata} confidenceScore={confidenceScore} />
       )}

@@ -100,7 +100,6 @@ export function TimelineView({ events }: TimelineViewProps) {
     );
   }
 
-  // Group events by date
   const eventsByDate = events.reduce((acc, event) => {
     const date = formatDate(event.eventDate);
     if (!acc[date]) {
@@ -123,12 +122,10 @@ export function TimelineView({ events }: TimelineViewProps) {
             {dateEvents.map((event) => (
               <Card key={event.id} className="p-4">
                 <div className="flex items-start gap-4">
-                  {/* Icon */}
                   <div className={`p-2 rounded-lg shrink-0 ${getEventColor(event.eventType)}`}>
                     {getEventIcon(event.eventType)}
                   </div>
 
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-4 mb-2">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -150,7 +147,6 @@ export function TimelineView({ events }: TimelineViewProps) {
                       {event.description}
                     </p>
 
-                    {/* Source Document */}
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <FileText className="h-3 w-3" />
                       <span>
@@ -161,7 +157,6 @@ export function TimelineView({ events }: TimelineViewProps) {
                       </span>
                     </div>
 
-                    {/* Structured Data Preview */}
                     {event.structuredData &&
                       Object.keys(event.structuredData).length > 0 && (
                         <div className="mt-3 p-3 bg-muted/50 rounded-md">

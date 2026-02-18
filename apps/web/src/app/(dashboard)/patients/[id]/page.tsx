@@ -9,7 +9,6 @@ import { getPatientDashboard, PatientDashboard, ProcessingStatus } from "@/lib/a
 import {
   PatientOverview,
   DocumentListDetailed,
-  TimelineView,
 } from "@/components/dashboard";
 
 // Status values that indicate a document is still processing
@@ -154,9 +153,6 @@ export default function PatientDashboardPage() {
                 <span className="ml-1 flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
               )}
             </TabsTrigger>
-            <TabsTrigger value="timeline">
-              Timeline ({dashboard.stats.totalTimelineEvents})
-            </TabsTrigger>
           </TabsList>
           
           <div className="flex items-center gap-2">
@@ -183,10 +179,6 @@ export default function PatientDashboardPage() {
             patientId={patientId}
             onDocumentDeleted={fetchDashboard}
           />
-        </TabsContent>
-
-        <TabsContent value="timeline" className="mt-6">
-          <TimelineView events={dashboard.timelineEvents} />
         </TabsContent>
       </Tabs>
     </div>

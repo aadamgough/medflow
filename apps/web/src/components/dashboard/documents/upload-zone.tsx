@@ -90,7 +90,6 @@ export function UploadZone({
 
   return (
     <div className="space-y-4">
-      {/* Drop zone */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -135,7 +134,6 @@ export function UploadZone({
         )}
       </div>
 
-      {/* Selected file */}
       {file && status !== "success" && (
         <div className="flex items-center gap-3 p-3 bg-muted rounded-md">
           <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
@@ -159,7 +157,6 @@ export function UploadZone({
         </div>
       )}
 
-      {/* Error message */}
       {error && (
         <div className="flex items-center gap-2 p-3 bg-destructive/10 rounded-md">
           <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
@@ -167,7 +164,6 @@ export function UploadZone({
         </div>
       )}
 
-      {/* Actions */}
       {file && status !== "success" && (
         <div className="flex gap-3">
           <Button
@@ -190,7 +186,6 @@ export function UploadZone({
         </div>
       )}
 
-      {/* Upload another */}
       {status === "success" && (
         <Button variant="outline" onClick={handleClear} className="w-full">
           Upload another

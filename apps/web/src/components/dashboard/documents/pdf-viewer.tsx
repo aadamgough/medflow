@@ -31,7 +31,6 @@ export function PDFViewer({ url, className = "" }: PDFViewerProps) {
     document.body.removeChild(link);
   };
 
-  // If there's an error loading the embed, show a fallback UI
   if (hasError) {
     return (
       <div className={`flex flex-col h-full ${className}`}>
@@ -60,7 +59,6 @@ export function PDFViewer({ url, className = "" }: PDFViewerProps) {
 
   return (
     <div className={`flex flex-col h-full ${className}`}>
-      {/* PDF Content using iframe - browser's native PDF viewer */}
       <div className="flex-1 relative bg-muted/20">
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/30 z-10">

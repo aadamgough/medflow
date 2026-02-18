@@ -12,7 +12,6 @@ import { DocumentWithExtraction, DocumentType, ProcessingStatus } from "@/lib/ap
 import { ExtractionViewer } from "./extraction-viewer";
 import { JsonViewer } from "./json-viewer";
 
-// Status values that indicate a document is still processing
 const PROCESSING_STATUSES: ProcessingStatus[] = [
   "PENDING",
   "PREPROCESSING",

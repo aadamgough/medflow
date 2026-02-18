@@ -84,7 +84,6 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
           />
         ) : (
           <div className="space-y-6">
-            {/* Patient selector */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
                 Patient <span className="text-destructive">*</span>
@@ -99,7 +98,6 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
               />
             </div>
 
-            {/* Document type selector */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
                 Document type
@@ -119,7 +117,6 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
               </p>
             </div>
 
-            {/* Upload zone */}
             {selectedPatientId && (
               <UploadZone
                 key={uploadKey}
