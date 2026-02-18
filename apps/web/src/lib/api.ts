@@ -77,7 +77,6 @@ export interface PaginatedResponse<T> {
   offset: number;
 }
 
-// Dashboard types
 export type ValidationWarning = {
   field: string;
   message: string;
@@ -408,4 +407,114 @@ export async function removeProfilePicture(): Promise<{ user: User }> {
   }
 
   return response;
+}
+
+export type MessageRole = 'USER' | 'ASSISTANT' | 'SYSTEM';
+
+export interface ChatMessage {
+  id: string;
+  sessionId: string;
+  role: MessageRole;
+  content: string;
+  sources: unknown | null;
+  createdAt: string;
+}
+
+export interface ChatSession {
+  id: string;
+  userId: string;
+  documentId: string;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessage[];
+}
+
+export async function getChatSession(documentId: string): Promise<{ session: ChatSession | null }> {
+  return apiFetch(`/api/chat/document/${documentId}`);
+}
+
+export async function sendChatMessage(
+  documentId: string,
+  message: string
+): Promise<{
+  sessionId: string;
+  userMessage: ChatMessage;
+  assistantMessage: ChatMessage;
+}> {
+  return apiFetch('/api/chat', {
+    method: 'POST',
+    body: JSON.stringify({ documentId, message }),
+  });
+}
+
+export async function streamChatMessage(
+  documentId: string,
+  message: string,
+  onChunk: (content: string) => void,
+  onDone: (data: { sessionId: string; userMessageId: string; assistantMessageId: string }) => void,
+  onError: (error: string) => void
+): Promise<void> {
+  const token = getToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ documentId, message }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Stream failed');
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('Response body is not readable');
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    
+    if (done) break;
+    
+    buffer += decoder.decode(value, { stream: true });
+    
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6);
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === 'chunk') {
+            onChunk(parsed.content);
+          } else if (parsed.type === 'done') {
+            onDone({
+              sessionId: parsed.sessionId,
+              userMessageId: parsed.userMessageId,
+              assistantMessageId: parsed.assistantMessageId,
+            });
+          } else if (parsed.type === 'error') {
+            onError(parsed.error);
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+  }
+}
+
+export async function deleteChatSession(sessionId: string): Promise<{ message: string }> {
+  return apiFetch(`/api/chat/${sessionId}`, {
+    method: 'DELETE',
+  });
 }

@@ -165,9 +165,7 @@ class DocumentWorker {
       await job.updateProgress(90);
 
       // 4. Determine final status based on extraction results
-      const finalStatus: ProcessingStatus = extraction.requiresReview
-        ? 'REVIEW_REQUIRED'
-        : extraction.validationErrors.length > 0
+      const finalStatus: ProcessingStatus = extraction.validationErrors.length > 0
         ? 'FAILED'
         : 'COMPLETED';
 
@@ -188,7 +186,6 @@ class DocumentWorker {
             : 'PASSED',
           validationWarnings: extraction.validationWarnings as object[],
           validationErrors: extraction.validationErrors as object[],
-          requiresReview: extraction.requiresReview,
           processingTimeMs: extraction.processingTimeMs,
         },
       });
@@ -205,7 +202,6 @@ class DocumentWorker {
         classificationConfidence: classification.confidence,
         classificationMethod: classification.method,
         extractionConfidence: extraction.overallConfidence,
-        requiresReview: extraction.requiresReview,
         wordCount: ocrResult.wordCount,
         totalProcessingTimeMs: ocrResult.processingTimeMs + extraction.processingTimeMs,
       });

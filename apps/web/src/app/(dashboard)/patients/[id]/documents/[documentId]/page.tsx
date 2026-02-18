@@ -29,10 +29,9 @@ import {
   DocumentType,
   ProcessingStatus,
 } from "@/lib/api";
-import { PDFViewer, ExtractionViewer, JsonViewer } from "@/components/dashboard/documents";
+import { PDFViewer, ExtractionViewer, JsonViewer, ChatPanel } from "@/components/dashboard/documents";
 import { ConfirmationDialog } from "@/components/shared";
 
-// Status values that indicate a document is still processing
 const PROCESSING_STATUSES: ProcessingStatus[] = [
   "PENDING",
   "PREPROCESSING",
@@ -366,7 +365,6 @@ export default function DocumentViewerPage() {
           )}
         </div>
 
-        {/* Resize Handle */}
         <div
           className={`w-2 flex items-center justify-center cursor-col-resize transition-colors select-none ${
             isDragging ? "bg-primary" : "bg-border hover:bg-primary/50"
@@ -376,12 +374,10 @@ export default function DocumentViewerPage() {
           <GripVertical className={`h-5 w-5 ${isDragging ? "text-primary-foreground" : "text-muted-foreground/50 hover:text-primary"}`} />
         </div>
 
-        {/* Right Panel - Parse/Chat */}
         <div 
           className="flex flex-col min-w-0"
           style={{ width: `${100 - leftPanelWidth}%` }}
         >
-          {/* Top-level tabs: Parse / Chat */}
           <div className="flex items-center justify-between p-3 border-b bg-muted/30">
             <Tabs value={mainTab} onValueChange={setMainTab}>
               <TabsList className="h-8">
@@ -395,7 +391,6 @@ export default function DocumentViewerPage() {
               </TabsList>
             </Tabs>
 
-            {/* Format toggle (only show in Parse tab when extraction exists) */}
             {mainTab === "parse" && hasExtraction && !isProcessing && (
               <Tabs value={dataFormat} onValueChange={setDataFormat}>
                 <TabsList className="h-8">
@@ -410,10 +405,8 @@ export default function DocumentViewerPage() {
             )}
           </div>
 
-          {/* Content area */}
           <div className="flex-1 overflow-auto">
             {mainTab === "parse" ? (
-              // Parse Tab Content
               <div className="h-full">
                 {isProcessing ? (
                   <div className="h-full flex items-center justify-center p-4">
@@ -477,24 +470,12 @@ export default function DocumentViewerPage() {
                 )}
               </div>
             ) : (
-              // Chat Tab Content (Coming Soon)
-              <div className="h-full flex items-center justify-center p-4">
-                <div className="text-center max-w-sm">
-                  <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-foreground mb-2">
-                    Chat with Document
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Coming soon! You&apos;ll be able to ask questions about this document and get AI-powered answers.
-                  </p>
-                </div>
-              </div>
+              <ChatPanel documentId={documentId} />
             )}
           </div>
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
         open={showDeleteDialog}
         onOpenChange={(open) => {

@@ -41,7 +41,6 @@ export interface ExtractionResult {
   fieldConfidences: Record<string, number>;
   lowConfidenceFields: string[];
   overallConfidence: number;
-  requiresReview: boolean;
   validationWarnings: ValidationWarning[];
   validationErrors: ValidationError[];
   processingTimeMs: number;

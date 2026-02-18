@@ -11,6 +11,7 @@ import { startWorkers, stopWorkers } from './workers';
 import authRoutes from './routes/auth.routes';
 import documentRoutes from './routes/document.routes';
 import patientRoutes from './routes/patient.routes';
+import chatRoutes from './routes/chat.routes';
 
 const app: Express = express();
 const port = process.env.PORT || 3000;
@@ -30,6 +31,7 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/patients', patientRoutes);
+app.use('/api/chat', chatRoutes);
 // app.use('/api/timeline', timelineRoutes);
 
 app.use((err: Error, req: Request, res: Response, next: any) => {

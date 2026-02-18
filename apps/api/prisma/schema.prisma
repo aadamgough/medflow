@@ -71,9 +71,10 @@ model Document {
   retryCount   Int              @default(0)
 
   // Relations
-  extraction DocumentExtraction?
-  ocrResults OcrResult[]
-  patient    Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  extraction   DocumentExtraction?
+  ocrResults   OcrResult[]
+  chatSessions ChatSession[]
+  patient      Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
   @@index([userId])
@@ -111,7 +112,6 @@ enum ProcessingStatus {
   OCR_IN_PROGRESS
   EXTRACTION_IN_PROGRESS
   VALIDATION_IN_PROGRESS
-  REVIEW_REQUIRED
   COMPLETED
   FAILED
 }
@@ -190,13 +190,6 @@ model DocumentExtraction {
   medicalEntities    Json?   // NER results: medications, diagnoses, procedures, etc.
   ontologyCodes      Json?   // Linked codes: ICD-10, SNOMED, RxNorm, LOINC
 
-  // Human review
-  requiresReview     Boolean   @default(false)
-  reviewStatus       ReviewStatus?
-  reviewedAt         DateTime?
-  reviewedBy         String?
-  reviewNotes        String?   @db.Text
-  
   // Original values before any corrections
   originalExtractedData Json?
 
@@ -226,14 +219,6 @@ enum ValidationStatus {
   PASSED
   PASSED_WITH_WARNINGS
   FAILED
-}
-
-enum ReviewStatus {
-  PENDING_REVIEW
-  IN_REVIEW
-  APPROVED
-  REJECTED
-  CORRECTED
 }
 
 // =============================================================================
@@ -349,6 +334,53 @@ enum EventType {
   ALLERGY_IDENTIFIED
   IMMUNIZATION
   OTHER
+}
+
+// =============================================================================
+// CHAT - Document chat sessions
+// =============================================================================
+
+model ChatSession {
+  id         String   @id @default(cuid())
+  userId     String
+  documentId String
+
+  title      String?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  messages   ChatMessage[]
+  document   Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId])
+  @@index([userId])
+  @@index([documentId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id         String      @id @default(cuid())
+  sessionId  String
+
+  role       MessageRole
+  content    String      @db.Text
+
+  sources    Json?
+
+  createdAt  DateTime    @default(now())
+
+  session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("chat_messages")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
 }
 
 // =============================================================================

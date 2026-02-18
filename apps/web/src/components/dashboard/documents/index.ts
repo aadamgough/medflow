@@ -5,3 +5,4 @@ export { UploadZone } from "./upload-zone";
 export { ExtractionViewer } from "./extraction-viewer";
 export { JsonViewer } from "./json-viewer";
 export { PDFViewer } from "./pdf-viewer";
+export { ChatPanel } from "./chat-panel";

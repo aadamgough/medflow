@@ -73,18 +73,12 @@ export class ExtractionOrchestrator {
         );
       }
 
-      // Calculate confidence and determine review status
+      // Calculate confidence 
       const fieldConfidences = llmResponse.field_confidences || {};
       const overallConfidence = schemaMapper.calculateOverallConfidence(fieldConfidences);
       const lowConfidenceFields = Object.entries(fieldConfidences)
         .filter(([, conf]) => conf < confidenceThreshold)
         .map(([field]) => field);
-
-      const requiresReview = schemaMapper.shouldRequireReview(
-        overallConfidence,
-        lowConfidenceFields,
-        validationResult.warnings
-      );
 
       const processingTimeMs = Date.now() - startTime;
 
@@ -92,7 +86,6 @@ export class ExtractionOrchestrator {
         documentType,
         overallConfidence,
         lowConfidenceFieldCount: lowConfidenceFields.length,
-        requiresReview,
         processingTimeMs,
       });
 
@@ -101,7 +94,6 @@ export class ExtractionOrchestrator {
         fieldConfidences,
         lowConfidenceFields,
         overallConfidence,
-        requiresReview,
         validationWarnings: validationResult.warnings,
         validationErrors: validationResult.errors,
         processingTimeMs,
@@ -255,7 +247,6 @@ export class ExtractionOrchestrator {
       fieldConfidences: {},
       lowConfidenceFields: [],
       overallConfidence: 0,
-      requiresReview: true,
       validationWarnings: warnings,
       validationErrors: errors,
       processingTimeMs,
