@@ -2,11 +2,12 @@ import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Database } from "
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
+import type { ValidationWarning } from "@/lib/api";
 
 interface ExtractionViewerProps {
   data: Record<string, any>;
   confidenceScore?: number | null;
-  validationWarnings?: Record<string, any> | null;
+  validationWarnings?: ValidationWarning[] | null;
   validationErrors?: Record<string, any> | null;
 }
 
@@ -532,7 +533,7 @@ export function ExtractionViewer({
   validationErrors,
 }: ExtractionViewerProps) {
   const { metadata, categories: categorizedData } = groupDataByCategory(data);
-  const hasWarnings = validationWarnings && Object.keys(validationWarnings).length > 0;
+  const hasWarnings = validationWarnings && validationWarnings.length > 0;
   const hasErrors = validationErrors && Object.keys(validationErrors).length > 0;
   const hasMetadata = Object.keys(metadata).length > 0 || (confidenceScore !== null && confidenceScore !== undefined);
 
@@ -555,7 +556,7 @@ export function ExtractionViewer({
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-yellow-600" />
                 <span className="text-sm text-yellow-600 font-medium">
-                  {Object.keys(validationWarnings!).length} Warning{Object.keys(validationWarnings!).length !== 1 ? "s" : ""}
+                  {validationWarnings!.length} Warning{validationWarnings!.length !== 1 ? "s" : ""}
                 </span>
               </div>
             )}
@@ -568,10 +569,10 @@ export function ExtractionViewer({
                 <span>{String(val)}</span>
               </div>
             ))}
-            {hasWarnings && Object.entries(validationWarnings!).map(([key, val]) => (
-              <div key={key} className="text-xs text-yellow-700 dark:text-yellow-400 flex gap-2">
-                <span className="font-medium">{formatFieldName(key)}:</span>
-                <span>{String(val)}</span>
+            {hasWarnings && validationWarnings!.map((warning, idx) => (
+              <div key={idx} className="text-xs text-yellow-700 dark:text-yellow-400 flex gap-2">
+                <span className="font-medium">{formatFieldName(warning.field)}:</span>
+                <span>{warning.message}</span>
               </div>
             ))}
           </div>

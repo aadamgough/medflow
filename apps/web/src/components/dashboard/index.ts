@@ -5,6 +5,7 @@ export { PatientCard, PatientList, PatientOverview } from "./patients";
 export {
   DocumentListDetailed,
   DocumentDetailModal,
+  UploadModal,
   UploadZone,
   ExtractionViewer,
   JsonViewer,

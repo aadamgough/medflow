@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Header, PatientList } from "@/components/dashboard";
+import { Header, PatientList, UploadModal } from "@/components/dashboard";
 import { createPatient } from "@/lib/api";
 import { invalidatePatientsCache } from "@/lib/hooks";
 
 export default function PatientsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -46,10 +47,16 @@ export default function PatientsPage() {
         description="Manage your patient records"
         action={
           !showAddForm && (
-            <Button onClick={() => setShowAddForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add patient
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowUploadModal(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Documents
+              </Button>
+              <Button onClick={() => setShowAddForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add patient
+              </Button>
+            </div>
           )
         }
       />
@@ -125,6 +132,8 @@ export default function PatientsPage() {
       )}
 
       <PatientList onAddPatient={() => setShowAddForm(true)} />
+
+      <UploadModal open={showUploadModal} onOpenChange={setShowUploadModal} />
     </div>
   );
 }

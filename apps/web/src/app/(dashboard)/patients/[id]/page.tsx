@@ -139,7 +139,6 @@ export default function PatientDashboardPage() {
           <RefreshCw className="h-4 w-4 animate-spin" />
           <span>
             {dashboard.stats.pendingDocuments} document{dashboard.stats.pendingDocuments !== 1 ? 's' : ''} processing...
-            Auto-refreshing
           </span>
         </div>
       )}

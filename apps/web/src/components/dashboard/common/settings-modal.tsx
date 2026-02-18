@@ -33,7 +33,7 @@ import {
 
 const API_ACCESS_KEY = "medflow_api_access_enabled";
 
-type SettingsSection = "general" | "security" | "api-keys";
+type SettingsSection = "general" | "api";
 
 interface SettingsModalProps {
   open: boolean;
@@ -182,11 +182,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       items: [{ id: "general" as const, label: "General", icon: UserIcon }],
     },
     {
-      title: "Security",
-      items: [
-        { id: "security" as const, label: "API Access", icon: Shield },
-        { id: "api-keys" as const, label: "API Keys", icon: Key },
-      ],
+      title: "Integrations",
+      items: [{ id: "api" as const, label: "API", icon: Key }],
     },
   ];
 
@@ -253,8 +250,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <div className="flex items-center justify-between px-12 py-6">
               <h2 className="font-semibold text-base">
                 {activeSection === "general" && "General"}
-                {activeSection === "security" && "API Access"}
-                {activeSection === "api-keys" && "API Keys"}
+                {activeSection === "api" && "API"}
               </h2>
               <button
                 onClick={() => handleOpenChange(false)}
@@ -342,8 +338,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 </div>
               )}
 
-              {/* Security Section */}
-              {activeSection === "security" && (
+              {/* API Section */}
+              {activeSection === "api" && (
                 <div className="space-y-10 max-w-3xl">
                   <div className="flex items-start justify-between gap-12">
                     <div className="space-y-1.5 flex-1">
@@ -360,89 +356,98 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                       onCheckedChange={handleApiAccessChange}
                     />
                   </div>
-                </div>
-              )}
 
-              {/* API Keys Section */}
-              {activeSection === "api-keys" && (
-                <div className="space-y-8 max-w-3xl">
-                  <div className="space-y-2">
-                    <h4 className="text-base font-medium">Access Token</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Use this token to authenticate API requests from external
-                      applications.
-                    </p>
-                  </div>
+                  {apiAccessEnabled && (
+                    <div className="space-y-6 pt-4 border-t border-border">
+                      <div className="space-y-2">
+                        <h4 className="text-base font-medium">Access Token</h4>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          Use this token to authenticate API requests from external
+                          applications.
+                        </p>
+                      </div>
 
-            
-
-                  {/* Token Display */}
-                  <div className="space-y-5">
-                    <div className="p-5 rounded-lg bg-muted border border-border font-mono text-sm min-h-[90px] flex items-center">
-                      {tokenRevealed && tokenValue ? (
-                        <div className="break-all leading-relaxed">{tokenValue}</div>
-                      ) : (
-                        <div className="text-muted-foreground">
-                          {getToken()
-                            ? maskToken(getToken()!)
-                            : "No token available"}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3">
-                      {!tokenRevealed ? (
-                        <Button
-                          onClick={handleRevealToken}
-                          variant="outline"
-                          className="flex-1"
-                          size="lg"
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          Reveal Token
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={handleCopyToken}
-                          variant="outline"
-                          className="flex-1"
-                          size="lg"
-                        >
-                          {copied ? (
-                            <>
-                              <Check className="h-4 w-4 mr-2" />
-                              Copied!
-                            </>
+                      <div className="space-y-5">
+                        <div className="p-5 rounded-lg bg-muted border border-border font-mono text-sm min-h-[90px] flex items-center">
+                          {tokenRevealed && tokenValue ? (
+                            <div className="break-all leading-relaxed">{tokenValue}</div>
                           ) : (
-                            <>
-                              <Copy className="h-4 w-4 mr-2" />
-                              Copy Token
-                            </>
+                            <div className="text-muted-foreground">
+                              {getToken()
+                                ? maskToken(getToken()!)
+                                : "No token available"}
+                            </div>
                           )}
-                        </Button>
-                      )}
-                      <Button
-                        onClick={handleRegenerateToken}
-                        variant="secondary"
-                        disabled={isRegenerating}
-                        className="flex-1"
-                        size="lg"
-                      >
-                        <RefreshCw
-                          className={`h-4 w-4 mr-2 ${isRegenerating ? "animate-spin" : ""}`}
-                        />
-                        {isRegenerating ? "Regenerating..." : "Regenerate"}
-                      </Button>
-                    </div>
+                        </div>
 
-                    {tokenRevealed && (
-                      <p className="text-xs text-muted-foreground text-center pt-2">
-                        Token revealed. Make sure to copy it now — it won&apos;t
-                        be shown again.
-                      </p>
-                    )}
-                  </div>
+                        <div className="flex gap-3">
+                          {!tokenRevealed ? (
+                            <Button
+                              onClick={handleRevealToken}
+                              variant="outline"
+                              className="flex-1"
+                              size="lg"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Reveal Token
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={handleCopyToken}
+                              variant="outline"
+                              className="flex-1"
+                              size="lg"
+                            >
+                              {copied ? (
+                                <>
+                                  <Check className="h-4 w-4 mr-2" />
+                                  Copied!
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-4 w-4 mr-2" />
+                                  Copy Token
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            onClick={handleRegenerateToken}
+                            variant="secondary"
+                            disabled={isRegenerating}
+                            className="flex-1"
+                            size="lg"
+                          >
+                            <RefreshCw
+                              className={`h-4 w-4 mr-2 ${isRegenerating ? "animate-spin" : ""}`}
+                            />
+                            {isRegenerating ? "Regenerating..." : "Regenerate"}
+                          </Button>
+                        </div>
+
+                        {tokenRevealed && (
+                          <p className="text-xs text-muted-foreground text-center pt-2">
+                            Token revealed. Make sure to copy it now — it won&apos;t
+                            be shown again.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {!apiAccessEnabled && (
+                    <div className="p-6 rounded-lg bg-muted/50 border border-border">
+                      <div className="flex items-start gap-4">
+                        <Shield className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">API access is disabled</p>
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            Enable API access above to view and manage your access token for external integrations.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

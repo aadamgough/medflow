@@ -262,7 +262,12 @@ export class PatientService {
       (doc) => doc.extraction !== null
     ).length;
     const pendingDocuments = patient.documents.filter(
-      (doc) => doc.status === 'PENDING' || doc.status === 'PREPROCESSING' || doc.status === 'OCR_IN_PROGRESS'
+      (doc) => 
+        doc.status === 'PENDING' || 
+        doc.status === 'PREPROCESSING' || 
+        doc.status === 'OCR_IN_PROGRESS' ||
+        doc.status === 'EXTRACTION_IN_PROGRESS' ||
+        doc.status === 'VALIDATION_IN_PROGRESS'
     ).length;
     const failedDocuments = patient.documents.filter(
       (doc) => doc.status === 'FAILED'

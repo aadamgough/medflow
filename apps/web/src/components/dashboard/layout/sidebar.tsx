@@ -3,14 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Upload, Settings, ChevronLeft } from "lucide-react";
+import { Users, Settings, ChevronLeft } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { SettingsModal } from "../common/settings-modal";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
   { href: "/patients", label: "Patients", icon: Users },
-  { href: "/upload", label: "Upload", icon: Upload },
 ];
 
 interface SidebarProps {

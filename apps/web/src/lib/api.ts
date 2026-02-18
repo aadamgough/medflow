@@ -78,6 +78,13 @@ export interface PaginatedResponse<T> {
 }
 
 // Dashboard types
+export type ValidationWarning = {
+  field: string;
+  message: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH';
+  suggestedValue?: string;
+};
+
 export interface DocumentExtraction {
   id: string;
   documentId: string;
@@ -85,7 +92,7 @@ export interface DocumentExtraction {
   overallConfidence: number | null;
   processingTimeMs: number | null;
   extractedAt: string;
-  validationWarnings: Record<string, any> | null;
+  validationWarnings: ValidationWarning[] | null;
   validationErrors: Record<string, any> | null;
 }
 
