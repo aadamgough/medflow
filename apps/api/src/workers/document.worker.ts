@@ -7,6 +7,7 @@ import { storageService } from '../services/storage.service';
 import { ocrOrchestrator } from '../services/ocr';
 import { documentPreprocessor } from '../services/preprocessing.service';
 import { documentClassifier, extractionOrchestrator } from '../services/extraction';
+import { createDocumentChunks } from '../services/chunking.service';
 import { prisma } from '../config/database';
 import { ProcessingStatus, OcrEngine } from '@prisma/client';
 import { OcrPage, OcrTable, OcrKeyValuePair } from '../types/extraction.types';
@@ -189,6 +190,15 @@ class DocumentWorker {
           processingTimeMs: extraction.processingTimeMs,
         },
       });
+
+      // Create document chunks for semantic search
+      if (extraction.extractedData) {
+        try {
+          await createDocumentChunks(documentId, extraction.extractedData);
+        } catch (chunkError) {
+          logger.error('Failed to create document chunks', { documentId, error: chunkError });
+        }
+      }
 
       await this.updateStatus(documentId, finalStatus, { processingCompletedAt: new Date() });
       await job.updateProgress(100);

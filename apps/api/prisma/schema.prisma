@@ -74,6 +74,7 @@ model Document {
   extraction   DocumentExtraction?
   ocrResults   OcrResult[]
   chatSessions ChatSession[]
+  chunks       DocumentChunk[]
   patient      Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
@@ -334,6 +335,28 @@ enum EventType {
   ALLERGY_IDENTIFIED
   IMMUNIZATION
   OTHER
+}
+
+// =============================================================================
+// DOCUMENT CHUNKS - Vector embeddings for semantic search
+// =============================================================================
+
+model DocumentChunk {
+  id          String   @id @default(cuid())
+  documentId  String
+  content     String   @db.Text
+  position    Int
+  tokenCount  Int?
+
+  // pgvector embedding (1536 dimensions for text-embedding-3-small)
+  embedding   Unsupported("vector(1536)")
+
+  createdAt   DateTime @default(now())
+
+  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("document_chunks")
 }
 
 // =============================================================================

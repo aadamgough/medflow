@@ -5,13 +5,15 @@ import { logger } from '../utils/logger';
 import { MessageRole } from '@prisma/client';
 import { getMistralClient } from '../config/mistral';
 import { getAnthropicClient, ANTHROPIC_MODEL } from '../config/anthropic';
+import { searchDocumentChunks } from './chunking.service';
 
 const sendMessageSchema = z.object({
   documentId: z.string().cuid('Invalid document ID'),
   message: z.string().min(1, 'Message cannot be empty').max(4000, 'Message too long'),
 });
 
-const MAX_DOCUMENT_TOKENS = 8000;
+const MAX_CONTEXT_TOKENS = 12000;
+const TOP_K_CHUNKS = 5;
 
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -80,7 +82,7 @@ export class ChatService {
     });
   }
 
-  async prepareSession(userId: string, documentId: string) {
+  async prepareSession(userId: string, documentId: string, userMessage?: string) {
     const session = await this.createOrGetSession(userId, documentId);
     const document = session.document;
     const extraction = document.extraction;
@@ -89,15 +91,22 @@ export class ChatService {
       throw new Error('Document has no extraction data');
     }
 
-    const extractedText = this.extractTextFromData(extraction.extractedData);
-    const documentTokens = estimateTokens(extractedText);
+    const relevantChunks = userMessage 
+      ? await searchDocumentChunks(documentId, userMessage, TOP_K_CHUNKS)
+      : [];
 
-    const recentMessages = session.messages.slice(-20);
+    const chunksText = relevantChunks
+      .map((chunk, i) => `[Chunk ${i + 1}]\n${chunk.content}`)
+      .join('\n\n');
+
+    const chunksTokens = estimateTokens(chunksText);
+
+    const recentMessages = session.messages.slice(-30);
     let historyTokens = estimateTokens(formatChatHistory(recentMessages));
 
     let trimmedHistory: { role: MessageRole; content: string }[] = recentMessages;
     while (
-      documentTokens + historyTokens > MAX_DOCUMENT_TOKENS &&
+      chunksTokens + historyTokens > MAX_CONTEXT_TOKENS &&
       trimmedHistory.length > 0
     ) {
       trimmedHistory = trimmedHistory.slice(1);
@@ -107,13 +116,13 @@ export class ChatService {
       historyTokens = newHistoryTokens;
     }
 
-    return { session, extractedText, trimmedHistory };
+    return { session, chunksText, chunksTokens, trimmedHistory };
   }
 
   async sendMessage(userId: string, documentId: string, userMessage: string) {
     const validated = sendMessageSchema.parse({ documentId, message: userMessage });
 
-    const { session, extractedText, trimmedHistory } = await this.prepareSession(userId, validated.documentId);
+    const { session, chunksText, trimmedHistory } = await this.prepareSession(userId, validated.documentId, validated.message);
 
     const userMessageRecord = await prisma.chatMessage.create({
       data: {
@@ -126,7 +135,7 @@ export class ChatService {
     try {
       const response = await this.callAnthropic(
         validated.message,
-        extractedText,
+        chunksText,
         trimmedHistory
       );
 
@@ -165,7 +174,7 @@ export class ChatService {
   async *streamMessage(userId: string, documentId: string, userMessage: string) {
     const validated = sendMessageSchema.parse({ documentId, message: userMessage });
 
-    const { session, extractedText, trimmedHistory } = await this.prepareSession(userId, validated.documentId);
+    const { session, chunksText, trimmedHistory } = await this.prepareSession(userId, validated.documentId, validated.message);
 
     const userMessageRecord = await prisma.chatMessage.create({
       data: {
@@ -181,7 +190,7 @@ export class ChatService {
     try {
       for await (const chunk of this.streamAnthropic(
         validated.message,
-        extractedText,
+        chunksText,
         trimmedHistory
       )) {
         fullResponse += chunk;
@@ -255,7 +264,7 @@ export class ChatService {
 
   private async *streamAnthropic(
     userMessage: string,
-    documentText: string,
+    chunksText: string,
     history: { role: MessageRole; content: string }[]
   ): AsyncGenerator<string> {
     const client = getAnthropicClient();
@@ -268,12 +277,12 @@ export class ChatService {
     
 The document contains extracted structured data from a medical document (such as a discharge summary, lab result, prescription, consultation note, etc.).
 
-Provide accurate, helpful answers based ONLY on the information in the document. If you're unsure about something or the information isn't in the document, say so clearly.
+Provide accurate, helpful answers based ONLY on the information in the provided document chunks. If you're unsure about something or the information isn't in the provided chunks, say so clearly.
 
 Be concise but thorough. When relevant, cite specific sections or fields from the document.`;
 
-    const userPrompt = `${historyText}Document data:
-${documentText}
+    const userPrompt = `${historyText}Relevant document chunks:
+${chunksText}
 
 User question: ${userMessage}`;
 
@@ -305,7 +314,7 @@ User question: ${userMessage}`;
 
   private async callAnthropic(
     userMessage: string,
-    documentText: string,
+    chunksText: string,
     history: { role: MessageRole; content: string }[]
   ): Promise<string> {
     const client = getAnthropicClient();
@@ -318,12 +327,12 @@ User question: ${userMessage}`;
     
 The document contains extracted structured data from a medical document (such as a discharge summary, lab result, prescription, consultation note, etc.).
 
-Provide accurate, helpful answers based ONLY on the information in the document. If you're unsure about something or the information isn't in the document, say so clearly.
+Provide accurate, helpful answers based ONLY on the information in the provided document chunks. If you're unsure about something or the information isn't in the provided chunks, say so clearly.
 
 Be concise but thorough. When relevant, cite specific sections or fields from the document.`;
 
-    const userPrompt = `${historyText}Document data:
-${documentText}
+    const userPrompt = `${historyText}Relevant document chunks:
+${chunksText}
 
 User question: ${userMessage}`;
 
