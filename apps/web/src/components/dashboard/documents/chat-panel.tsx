@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
 import { Send, Bot, User, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -204,7 +205,13 @@ export function ChatPanel({ documentId }: ChatPanelProps) {
                     : "bg-muted"
                 }`}
               >
-                <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                {msg.role === "ASSISTANT" ? (
+                  <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                )}
                 {msg.id === "streaming" && isStreaming && (
                   <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
                 )}
