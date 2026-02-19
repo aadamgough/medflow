@@ -28,9 +28,10 @@ const documentTypes: ComboboxOption[] = [
 interface UploadModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preselectedPatientId?: string;
 }
 
-export function UploadModal({ open, onOpenChange }: UploadModalProps) {
+export function UploadModal({ open, onOpenChange, preselectedPatientId }: UploadModalProps) {
   const { patients, isLoading } = useAllPatients(100);
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
   const [selectedDocType, setSelectedDocType] = useState<DocumentType | "">("");
@@ -45,10 +46,12 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
   }, [patients]);
 
   useEffect(() => {
-    if (patients.length > 0 && !selectedPatientId) {
+    if (preselectedPatientId) {
+      setSelectedPatientId(preselectedPatientId);
+    } else if (patients.length > 0 && !selectedPatientId) {
       setSelectedPatientId(patients[0].id);
     }
-  }, [patients, selectedPatientId]);
+  }, [patients, selectedPatientId, preselectedPatientId]);
 
   useEffect(() => {
     if (!open) {

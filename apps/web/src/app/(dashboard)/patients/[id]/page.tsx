@@ -9,6 +9,7 @@ import { getPatientDashboard, PatientDashboard, ProcessingStatus } from "@/lib/a
 import {
   PatientOverview,
   DocumentListDetailed,
+  UploadModal,
 } from "@/components/dashboard";
 
 // Status values that indicate a document is still processing
@@ -30,6 +31,7 @@ export default function PatientDashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchDashboard = useCallback(async (showLoading = true) => {
@@ -161,7 +163,7 @@ export default function PatientDashboardPage() {
             )}
             <Button
               size="sm"
-              onClick={() => router.push(`/upload?patientId=${dashboard.patient.id}`)}
+              onClick={() => setShowUploadModal(true)}
             >
               <Upload className="h-4 w-4 mr-2" />
               Upload Document
@@ -181,6 +183,12 @@ export default function PatientDashboardPage() {
           />
         </TabsContent>
       </Tabs>
+
+      <UploadModal
+        open={showUploadModal}
+        onOpenChange={setShowUploadModal}
+        preselectedPatientId={patientId}
+      />
     </div>
   );
 }
